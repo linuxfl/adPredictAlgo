@@ -83,9 +83,9 @@ class Ftrl
         delete dtrain;
       delete dtest;
       
-      if(w != nullptr) delete w;
-      if(n != nullptr) delete n;
-      if(z != nullptr) delete z;
+      if(w != nullptr) delete []  w;
+      if(n != nullptr) delete [] n;
+      if(z != nullptr) delete [] z;
     }
     
     inline void SetParam(const char *name,const char *val) {
