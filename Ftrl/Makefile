@@ -1,6 +1,6 @@
 CXX = g++
 
-DEPS_PATH = ./third_part/
+DEPS_PATH = ../common
 
 LDFLAGS = -lpthread
 CFLAGS = -O3 -Wall -Iinclude -std=c++0x
@@ -12,7 +12,7 @@ DIR_SRC = ./src
 SRC = $(wildcard $(DIR_SRC)/*.cc)
 
 OBJ = $(patsubst %.cc,$(DIR_SRC)/%.o,$(notdir $(SRC)))
-OBJ += ./lib/libdmlc.a
+OBJ += $(DEPS_PATH)/lib/libdmlc.a
 
 target = ./bin/train
 
