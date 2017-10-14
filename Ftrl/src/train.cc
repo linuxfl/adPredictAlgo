@@ -17,7 +17,7 @@ int main(int argc,char **argv)
       "libsvm"
       );
 
-  algo::Ftrl *ftrl = nullptr;
+  adPredictAlgo::Ftrl *ftrl = nullptr;
   
   if (!strcmp(argv[3],"batch")) {
     dmlc::RowBlockIter<unsigned> *train_data
@@ -27,9 +27,9 @@ int main(int argc,char **argv)
         1,
         "libsvm"
         );
-    ftrl = new algo::Ftrl(train_data,test_data);
+    ftrl = new adPredictAlgo::Ftrl(train_data,test_data);
   }else if (!strcmp(argv[3],"stream")) {
-    ftrl = new algo::Ftrl(argv[1],test_data);
+    ftrl = new adPredictAlgo::Ftrl(argv[1],test_data);
   }else {
     LOG(FATAL) << "error memory_in type!";
   }

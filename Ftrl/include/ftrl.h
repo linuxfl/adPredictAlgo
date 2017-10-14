@@ -9,7 +9,7 @@
 #include <algorithm>
 
 #include "str_util.h"
-namespace algo{
+namespace adPredictAlgo{
 
 // <pscore , label>
 typedef struct pair{
