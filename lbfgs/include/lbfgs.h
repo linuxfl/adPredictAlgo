@@ -20,20 +20,20 @@ class LBFGSSolver{
       
       max_lbfgs_iter = 100;
       max_linesearch_iter = 20;
-        num_fea = 0;
+      num_fea = 0;
     }
     
     inline void Init() {
       linear.Init();
-       num_fea = std::max(linear.num_fea,dtrain->NumCol());
+      num_fea = std::max(linear.num_fea,dtrain->NumCol());
         
       CHECK(num_fea > 0) << "please init num fea!";
       
       grad = Eigen::VectorXf::Zero(num_fea);
       l1_grad = Eigen::VectorXf::Zero(num_fea);
 
-      z = Eigen::VectorXf::Zero(num_fea);      
-        alpha.resize(memory_size,0.0f);
+      z = Eigen::VectorXf::Zero(num_fea);
+      alpha.resize(memory_size,0.0f);
       for(size_t i = 0 ;i < memory_size;i++) {
         Eigen::VectorXf yelem(num_fea);
         Eigen::VectorXf selem(num_fea);
@@ -93,11 +93,11 @@ class LBFGSSolver{
 
     virtual void FixL1Sign(Eigen::VectorXf &p,Eigen::VectorXf &l1_grad) {
         if(l1_reg != 0.0f){
-        for(size_t i = 0; i < num_fea;i++) {
-            if(p[i] * l1_grad[i] < 0.0f) {
-                p[i] = 0.0f;
+            for(size_t i = 0; i < num_fea;i++) {
+                if(p[i] * l1_grad[i] <= 0.0f) {
+                    p[i] = 0.0f;
+                }
             }
-        }
         }
     }
 
@@ -142,7 +142,7 @@ class LBFGSSolver{
     }
 
     virtual int BacktrackLineSearch(Eigen::VectorXf &new_weight,
-                                const Eigen::VectorXf &old_weight,float dot_dir_l1grad) 
+                                const Eigen::VectorXf &old_weight,float dot_dir_l1grad,int iter) 
     {
       int k = 0;
       float alpha_ = 1.0;
@@ -150,6 +150,10 @@ class LBFGSSolver{
       float c1 = linesearch_c1;
       float dginit = 0.0,dgtest;
       
+      if(iter == 0) {
+          alpha_ = 1.0f / std::sqrt(-dot_dir_l1grad);
+          backoff = 0.1f;
+        }
       //direction dot gradient
       //dginit = grad.dot(-z);
       if(dginit > 0){
@@ -187,7 +191,7 @@ class LBFGSSolver{
     virtual bool UpdateOneIter(int iter) {
       bool stop = false;
       float vdot = FindChangeDirection(iter);
-      int k = BacktrackLineSearch(linear.new_weight,linear.old_weight,vdot);
+      int k = BacktrackLineSearch(linear.new_weight,linear.old_weight,vdot,iter);
       UpdateHistInfo(iter);
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval) 
         return true;  
