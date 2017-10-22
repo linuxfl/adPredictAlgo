@@ -34,24 +34,24 @@ struct LinearModel {
     }
   }
   
-  inline float Sigmoid(float inx) const {  
+  inline double Sigmoid(float inx) const {  
     return 1.0 / (1 + std::exp(-inx));
   }
 
   
-  inline float CalLoss(float label,float margin) const {
-    float nlogprob = 0.0;
+  inline double CalLoss(float label,float margin) const {
+    double nlogprob = 0.0;
     if(int(label) == 1) {
       nlogprob = std::log(Sigmoid(margin));
     }else {
       nlogprob = std::log(1-Sigmoid(margin));
     }
-    return nlogprob;
+    return -nlogprob;
   }
 
-  inline float InnerProduct(const Eigen::VectorXf &w,
+  inline double InnerProduct(const Eigen::VectorXf &w,
                               const dmlc::Row<unsigned> &v) const {
-    float sum = 0.0;
+    double sum = 0.0;
     for(unsigned i = 0;i < v.length;i++) {
       if(v.index[i] < num_fea) {
         sum += w[v.index[i]];
@@ -60,18 +60,19 @@ struct LinearModel {
     return sum;
   }
 
-  inline float PredToGrad(const Eigen::VectorXf &w,
+  inline double PredToGrad(const Eigen::VectorXf &w,
                             const dmlc::Row<unsigned> &v) const {
     return Sigmoid(InnerProduct(w,v)) - v.get_label();
   }
 
-  virtual float CalGrad(Eigen::VectorXf &out_grad,const Eigen::VectorXf &weight,
+  virtual double CalGrad(Eigen::VectorXf &out_grad,const Eigen::VectorXf &weight,
         dmlc::RowBlockIter<unsigned> *dtrain) const {
-    std::vector<float> grad;
+    std::vector<double> grad;
+    out_grad.setZero();
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
       const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
-      grad.resize(batch.size);
+      grad.resize(batch.size,0.0f);
       for(size_t i = 0;i < batch.size;i++) {
         dmlc::Row<unsigned> v = batch[i];
         grad[i] = PredToGrad(weight,v);
@@ -90,22 +91,22 @@ struct LinearModel {
     }
   }
   
-  virtual float Eval(dmlc::RowBlockIter<unsigned> *dtrain,
-                  Eigen::VectorXf weight) {
+  virtual double Eval(dmlc::RowBlockIter<unsigned> *dtrain,
+                  const Eigen::VectorXf &weight) {
     double sum_val = 0.0f;
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
       const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
       for(size_t i = 0;i < batch.size;i++) {
-        float fv 
-            = CalLoss(batch[i].get_label(),Sigmoid(InnerProduct(weight,batch[i])));
+        double fv 
+            = CalLoss(batch[i].get_label(),InnerProduct(weight,batch[i]));
         sum_val += fv;
       }
     }
 
     if(l2_reg != 0.0f) {
-      double sum_sqr = 0.5 * weight.norm();
-      sum_val = -sum_val + sum_sqr;
+      double sum_sqr = 0.5 * l2_reg * weight.norm();
+      sum_val += sum_sqr;
     }
     return sum_val;
   }

@@ -26,8 +26,8 @@ int main(int argc,char **argv)
   */
   adPredictAlgo::LBFGSSolver *lbfgs
     = new adPredictAlgo::LBFGSSolver(dtrain);
-
-  char *name,*val;
+  
+  char name[256],val[256];
   for(int i = 2;i < argc;i++) {
     sscanf(argv[i],"%[^=]=%s",name,val);
     lbfgs->SetParam(name,val);
