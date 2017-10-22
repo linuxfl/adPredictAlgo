@@ -19,17 +19,19 @@ class LBFGSSolver{
       memory_size = 4;
       
       max_lbfgs_iter = 100;
-      max_linesearch_iter = 5;
-
+      max_linesearch_iter = 20;
+        num_fea = 0;
     }
     
     inline void Init() {
       linear.Init();
-      size_t num_fea = std::max(linear.num_fea,dtrain->NumCol());
+       num_fea = std::max(linear.num_fea,dtrain->NumCol());
         
       CHECK(num_fea > 0) << "please init num fea!";
       
       grad = Eigen::VectorXf::Zero(num_fea);
+      l1_grad = Eigen::VectorXf::Zero(num_fea);
+
       z = Eigen::VectorXf::Zero(num_fea);      
         alpha.resize(memory_size,0.0f);
       for(size_t i = 0 ;i < memory_size;i++) {
@@ -40,10 +42,13 @@ class LBFGSSolver{
         s.push_back(selem);
       }
 
-      //init grad
+      //init gradient
       linear.CalGrad(grad,linear.old_weight,dtrain);
+      //init l1 gradient;
+      if(l1_reg != 0) SetDirL1Sign(l1_grad,grad,linear.old_weight);
+      else l1_grad = grad;
       //init obj val
-      init_objval = linear.Eval(dtrain,linear.old_weight);
+      init_objval = this->Eval(dtrain,linear.old_weight);
       old_objval = init_objval;
       LOG(INFO) << "L-BFGS solver starts, num_fea=" << num_fea << ",init_objval=" << init_objval
                 << ",memory_size=" << memory_size << ",l1_reg="<<l1_reg << ",l2_reg=" << linear.l2_reg;
@@ -61,12 +66,13 @@ class LBFGSSolver{
       linear.SetParam(name,val);
     }
 
-    virtual void FindChangeDirection(int iter) {
+    //return l1_reg_grad and direction dot
+    virtual float FindChangeDirection(int iter) {
       int k = iter;
       int M = memory_size;
       int j;
     
-        z = grad;
+        z = l1_grad;
       k - M >= 0? j = M - 1:j = k - 1;
       for(int i = j; i >= 0;i--){
         alpha[i] = s[i].dot(z)/y[i].dot(s[i]);
@@ -79,11 +85,64 @@ class LBFGSSolver{
       }
       for(int i = 0;i <= j;i++){
         z.noalias() += s[i] * (alpha[i] - y[i].dot(z)/y[i].dot(s[i]));
-      }      
+      }
+      //SetDirL1Sign(l1_grad,grad,linear.old_weight);
+      FixL1Sign(z,l1_grad);
+      return l1_grad.dot(-z);
+    }
+
+    virtual void FixL1Sign(Eigen::VectorXf &p,Eigen::VectorXf &l1_grad) {
+        if(l1_reg != 0.0f){
+        for(size_t i = 0; i < num_fea;i++) {
+            if(p[i] * l1_grad[i] < 0.0f) {
+                p[i] = 0.0f;
+            }
+        }
+        }
+    }
+
+    virtual void SetDirL1Sign(Eigen::VectorXf &out_dir,
+                    const Eigen::VectorXf &grad,const Eigen::VectorXf &weight) {
+        if(l1_reg == 0.0f){
+            return;
+        }
+
+        for(size_t i = 0;i < num_fea;i++) {
+            if(weight[i] == 0.0f){
+                if(grad[i] > l1_reg){
+                    out_dir[i] = grad[i] - l1_reg;
+                }else if(grad[i] < -l1_reg) {
+                    out_dir[i] = grad[i] + l1_reg;
+                }else {
+                    out_dir[i] = 0.0f;
+                }
+            }else{
+                if(weight[i] > 0.0f){
+                        out_dir[i] = grad[i] + l1_reg;
+                }else{
+                        out_dir[i] = grad[i] - l1_reg;
+                }
+            }
+     }
+    }
+    
+    virtual void FixWeightSign(Eigen::VectorXf &new_weight,
+                            const Eigen::VectorXf &old_weight,const Eigen::VectorXf &l1_grad) {
+        if(l1_reg != 0.0f) {
+            for(size_t i = 0;i < num_fea;i++) {
+                if(old_weight[i] == 0.0f){
+                    if(-l1_grad[i] * new_weight[i] < 0.0f) {
+                        new_weight[i] = 0.0f;
+                    }
+                }else if(old_weight[i] * new_weight[i] < 0.0f){
+                    new_weight[i] = 0.0f;
+                }
+            }
+        }
     }
 
     virtual int BacktrackLineSearch(Eigen::VectorXf &new_weight,
-                                    Eigen::VectorXf &old_weight) 
+                                const Eigen::VectorXf &old_weight,float dot_dir_l1grad) 
     {
       int k = 0;
       float alpha_ = 1.0;
@@ -91,16 +150,18 @@ class LBFGSSolver{
       float c1 = linesearch_c1;
       float dginit = 0.0,dgtest;
       
-      dginit = grad.dot(-z);
+      //direction dot gradient
+      //dginit = grad.dot(-z);
       if(dginit > 0){
         LOG(FATAL) << "The s point is not decent direction." ;
         //return alpha;
       }
-      dgtest = c1 * dginit;
+      dgtest = c1 * dot_dir_l1grad;
 
       while(k < max_linesearch_iter){
-        new_weight = old_weight - alpha_ * z; 
-        new_objval = linear.Eval(dtrain,new_weight);
+        new_weight = old_weight - alpha_ * z;
+        FixWeightSign(new_weight,old_weight,l1_grad);
+        new_objval = this->Eval(dtrain,new_weight);
         if(new_objval <= old_objval +  alpha_ * dgtest)
           break;
         else
@@ -114,17 +175,19 @@ class LBFGSSolver{
         int k = iter;
         y[k % memory_size] = grad;
         linear.CalGrad(grad,linear.new_weight,dtrain);
+        if(l1_reg == 0.0f)
+            l1_grad = grad;
+        else
+            SetDirL1Sign(l1_grad,grad,linear.new_weight);
         y[k % memory_size] = grad - y[k % memory_size];
         s[k % memory_size] = linear.new_weight - linear.old_weight;
         linear.old_weight = linear.new_weight;
     }
 
-
-
     virtual bool UpdateOneIter(int iter) {
       bool stop = false;
-      FindChangeDirection(iter);
-      int k = BacktrackLineSearch(linear.new_weight,linear.old_weight);
+      float vdot = FindChangeDirection(iter);
+      int k = BacktrackLineSearch(linear.new_weight,linear.old_weight,vdot);
       UpdateHistInfo(iter);
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval) 
         return true;  
@@ -143,6 +206,18 @@ class LBFGSSolver{
       }
     }
 
+    virtual double Eval(dmlc::RowBlockIter<unsigned> *dtrain,
+                            const Eigen::VectorXf &weight) {
+        double fv = linear.Eval(dtrain,weight);
+        
+        if (l1_reg) {
+        for(size_t i = 0;i < num_fea;i++) {
+            fv += l1_reg * std::abs(weight[i]);
+        }
+        }
+        return fv;
+    }
+
   private:
     float l1_reg;
     float linesearch_c1;
@@ -158,6 +233,7 @@ class LBFGSSolver{
     double new_objval;
     double old_objval;
     double init_objval;
+    size_t num_fea;
 
     //parameter
     std::vector<float> alpha;
@@ -166,7 +242,8 @@ class LBFGSSolver{
     
     Eigen::VectorXf z;
     Eigen::VectorXf grad;
-    
+    Eigen::VectorXf l1_grad;
+
     //data
     dmlc::RowBlockIter<unsigned> *dtrain;
 };
