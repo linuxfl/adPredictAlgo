@@ -21,14 +21,12 @@ struct LinearModel {
     l2_reg = 0.0f;
   }
 
-  inline void Init() {
+  inline void Init(size_t _num_fea) {
+      num_fea = _num_fea;
     old_weight = Eigen::VectorXf::Zero(num_fea);
     new_weight = Eigen::VectorXf::Zero(num_fea);
   }
   inline void SetParam(const char *name,const char *val) {
-    if(!strcmp(name,"num_fea")) {
-      num_fea = static_cast<size_t>(atoi(val));
-    }
     if(!strcmp(name,"l2_reg")) {
       l2_reg = static_cast<float>(atof(val));
     }
@@ -58,6 +56,11 @@ struct LinearModel {
       }
     }
     return sum;
+  }
+
+  inline double Pred(const Eigen::VectorXf &w,
+                            const dmlc::Row<unsigned> &v) const {
+    return Sigmoid(InnerProduct(w,v));
   }
 
   inline double PredToGrad(const Eigen::VectorXf &w,
