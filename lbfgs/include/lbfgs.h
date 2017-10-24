@@ -43,7 +43,7 @@ class LBFGSSolver{
         model_out = "lr_model.dat";
         model_in = "NULL";
     }
-    
+   
     inline void Init() {
       num_fea = std::max(num_fea,dtrain->NumCol());
       linear.Init(num_fea);
@@ -108,7 +108,7 @@ class LBFGSSolver{
       int M = memory_size;
       int j;
     
-        z = l1_grad;
+      z = l1_grad;
       k - M >= 0? j = M - 1:j = k - 1;
       for(int i = j; i >= 0;i--){
         alpha[i] = s[i].dot(z)/y[i].dot(s[i]);
@@ -231,9 +231,9 @@ class LBFGSSolver{
       UpdateHistInfo(iter);
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval) 
         return true;  
-        LOG(INFO) << "[" << iter <<"]" << " L-BFGS: linesearch finishes in "<< k 
+      LOG(INFO) << "[" << iter <<"]" << " L-BFGS: linesearch finishes in "<< k 
                     << " rounds, new_objval=" << new_objval << ", improvment=" << old_objval - new_objval;
-        old_objval = new_objval;
+      old_objval = new_objval;
       return stop;
     }
 
@@ -250,7 +250,7 @@ class LBFGSSolver{
       std::vector<pair_t> pair_vec;
       dtrain->BeforeFirst();
       while(dtrain->Next()) {
-        const dmlc::RowBlock<unsigned> &batch = dtrain->Value()
+        const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
           for(unsigned j = 0; j < v.length;j++) {
@@ -264,7 +264,7 @@ class LBFGSSolver{
       is.close();
       
       LOG(INFO) << "test AUC is : " << CalAUC(pair_vec) 
-                << "test COPC is : " << CalCOPC(pair_vec);
+                << ", test COPC is : " << CalCOPC(pair_vec);
     }
     
     virtual void SaveModel() {

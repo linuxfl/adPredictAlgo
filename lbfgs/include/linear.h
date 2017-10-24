@@ -30,6 +30,9 @@ struct LinearModel {
     if(!strcmp(name,"l2_reg")) {
       l2_reg = static_cast<float>(atof(val));
     }
+    if(!strcmp(name,"num_fea")) {
+      num_fea = static_cast<size_t>(atoi(val));
+    }
   }
   
   inline double Sigmoid(float inx) const {  
