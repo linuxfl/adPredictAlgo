@@ -4,6 +4,7 @@
 #include <dmlc/data.h>
 #include <fstream>
 #include "linear.h"
+#include "metric.h"
 
 namespace adPredictAlgo{
 
@@ -43,7 +44,12 @@ class LBFGSSolver{
         model_out = "lr_model.dat";
         model_in = "NULL";
     }
-   
+    
+    ~LBFGSSolver() {
+      if(dtrain != nullptr)
+        delete dtrain;
+    }
+
     inline void Init() {
       num_fea = std::max(num_fea,dtrain->NumCol());
       linear.Init(num_fea);
@@ -247,7 +253,7 @@ class LBFGSSolver{
       for(size_t i = 0;i < num_fea;i++)
         is >> weight[i];
     
-      std::vector<pair_t> pair_vec;
+      std::vector<Metric::pair_t> pair_vec;
       dtrain->BeforeFirst();
       while(dtrain->Next()) {
         const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
@@ -255,7 +261,7 @@ class LBFGSSolver{
           dmlc::Row<unsigned> v = batch[i];
           for(unsigned j = 0; j < v.length;j++) {
             double pv = linear.Pred(weight,v);
-            pair_t p(pv,v.get_label());
+            Metric::pair_t p(pv,v.get_label());
             pair_vec.push_back(p);
           }
         }
@@ -263,8 +269,8 @@ class LBFGSSolver{
         
       is.close();
       
-      LOG(INFO) << "test AUC is : " << CalAUC(pair_vec) 
-                << ", test COPC is : " << CalCOPC(pair_vec);
+      LOG(INFO) << "test AUC is : " << Metric::CalAUC(pair_vec) 
+                << ", test COPC is : " << Metric::CalCOPC(pair_vec);
     }
     
     virtual void SaveModel() {
@@ -309,7 +315,7 @@ class LBFGSSolver{
       return fv;
     }
 
-   double CalAUC(std::vector<pair_t> p) {
+/*   double CalAUC(std::vector<pair_t> p) {
      long total_score = 0;
      long pos_num = 0;
 
@@ -335,7 +341,7 @@ class LBFGSSolver{
       }   
       return label * 1.0 / score;
     }   
-
+*/
   private:
     float l1_reg;
     float linesearch_c1;

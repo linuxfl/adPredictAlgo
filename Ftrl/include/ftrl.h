@@ -9,19 +9,10 @@
 #include <algorithm>
 
 #include "str_util.h"
+#include "metric.h"
+
 namespace adPredictAlgo{
 
-// <pscore , label>
-typedef struct pair{
-  
-  pair(float s,int l):score(s),t_label(l) { }
-  float score;
-  int t_label;
-
-  bool operator < (const struct pair &p) const {
-    return score > p.score;
-  }
-}pair_t;
 //instance struct
 typedef struct {
   int label;
@@ -285,19 +276,19 @@ class Ftrl
     }
 
     void TaskPred() {
-      std::vector<pair_t> pair_vec;
+      std::vector<Metric::pair_t> pair_vec;
       dtest->BeforeFirst();
       while(dtest->Next()) {
         const dmlc::RowBlock<unsigned> &batch = dtest->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
           double score = PredIns(v);
-          pair_t p(score,v.get_label());
+          Metric::pair_t p(score,v.get_label());
           pair_vec.push_back(p);
         }
       }
-      LOG(INFO) << "test AUC is :" << this->CalAUC(pair_vec) 
-                << " COPC : " << this->CalCOPC(pair_vec);
+      LOG(INFO) << "test AUC is :" << Metric::CalAUC(pair_vec) 
+                << " COPC : " << Metric::CalCOPC(pair_vec);
     }
     
     inline int Sign(double val) {
@@ -326,32 +317,6 @@ class Ftrl
       return Sigmoid(inner);
     }  
 
-    double CalAUC(std::vector<pair_t> p) {
-      long total_score = 0;
-      long pos_num = 0;
-
-      sort(p.begin(),p.end());
-      size_t num = p.size();
-
-      for(size_t i = 0;i < num;i++) {
-        if(p[i].t_label == 1) {
-          total_score = total_score + num - i;
-          pos_num++;
-        }
-      }
-      total_score = total_score - pos_num * (pos_num + 1)/2.0f;
-      return (total_score * 1.0f / ((num - pos_num) * pos_num));
-    }    
-     
-    double CalCOPC(const std::vector<pair_t> &p) {
-      float score = 0.0;
-      int label = 0;
-      for(auto iter = p.begin();iter != p.end();iter++) {
-        score += (*iter).score;
-        label += (*iter).t_label;
-      }
-      return label * 1.0 / score;
-    }  
   private:
     double *w,*n,*z;
     size_t num_feature;
