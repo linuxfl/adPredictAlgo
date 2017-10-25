@@ -33,7 +33,8 @@ int main(int argc,char **argv)
     lbfgs->SetParam(name,val);
   }
   lbfgs->Run();
-  delete lbfgs;
+  if(lbfgs != nullptr)
+    delete lbfgs;
 
   return 0;
 }

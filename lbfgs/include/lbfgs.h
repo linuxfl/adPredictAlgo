@@ -45,7 +45,7 @@ class LBFGSSolver{
         model_in = "NULL";
     }
     
-    ~LBFGSSolver() {
+    virtual ~LBFGSSolver() {
       if(dtrain != nullptr)
         delete dtrain;
     }

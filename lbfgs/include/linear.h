@@ -71,7 +71,7 @@ struct LinearModel {
     return Sigmoid(InnerProduct(w,v)) - v.get_label();
   }
 
-  virtual double CalGrad(Eigen::VectorXf &out_grad,const Eigen::VectorXf &weight,
+  virtual void CalGrad(Eigen::VectorXf &out_grad,const Eigen::VectorXf &weight,
         dmlc::RowBlockIter<unsigned> *dtrain) const {
     std::vector<double> grad;
     out_grad.setZero();
