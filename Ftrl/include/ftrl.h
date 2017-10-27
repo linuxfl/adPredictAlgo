@@ -29,6 +29,7 @@ class Ftrl
     float l1_reg; //l1 norm
     float alpha;  //ftrl parameter
     float beta;   //ftrl parameter
+    float base_score;
 
     char *traind;  
     dmlc::RowBlockIter<unsigned> *dtrain;
@@ -59,6 +60,7 @@ class Ftrl
       l1_reg = 0.0f;
       alpha = 0.01f;
       beta = 1.0f;
+      base_score = 0.5f;
 
       num_feature = 0;
       model_in = "NULL";
@@ -79,6 +81,12 @@ class Ftrl
       if(z != nullptr) delete [] z;
     }
     
+    inline void InitBaseScore() {
+      CHECK(base_score > 0.0f &&  base_score < 1.0f) << 
+        "base score must be in (0,1) for logistic loss";
+      base_score = -std::log(1.0f/base_score - 1.0f);
+    }
+
     inline void SetParam(const char *name,const char *val) {
       if (!strcmp(name,"model_in")) model_in = val;
       if (!strcmp(name,"model_out")) model_out = val;
@@ -87,6 +95,7 @@ class Ftrl
       if (!strcmp(name,"alpha")) alpha = static_cast<float>(atof(val));
       if (!strcmp(name,"beta")) beta = static_cast<float>(atof(val));
       if (!strcmp(name,"num_feature")) num_feature = static_cast<size_t>(atoi(val));
+      if (!strcmp(name,"base_score")) base_score = static_cast<float>(atof(val));
     }
 
     inline void Run()
@@ -137,7 +146,9 @@ class Ftrl
       //init weight and ftrl paramter
       w = new double[num_feature];
       n = new double[num_feature];
-      z = new double[num_feature];    
+      z = new double[num_feature];
+
+      InitBaseScore();
     }
 
     void TrainOnBatch() {
@@ -304,6 +315,7 @@ class Ftrl
       for(unsigned i = 0;i < v.length;i++) {
         inner += w[v.index[i]];
       }
+      inner += base_score;
       return Sigmoid(inner);
     }
 
@@ -314,6 +326,7 @@ class Ftrl
       for(size_t i = 0;i < inslen;i++) {
         inner += w[fea_vec[i]];
       }
+      inner += base_score;
       return Sigmoid(inner);
     }  
 
