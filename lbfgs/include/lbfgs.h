@@ -135,7 +135,7 @@ class LBFGSSolver{
     virtual void SetDirL1Sign(Eigen::VectorXf &out_dir,
                     const Eigen::VectorXf &grad,const Eigen::VectorXf &weight) {
       if(l1_reg == 0.0f){
-            return;
+        out_dir = grad;
       }
       
       for(size_t i = 0;i < num_fea;i++) {
@@ -210,10 +210,7 @@ class LBFGSSolver{
         int k = iter;
         y[k % memory_size] = grad;
         linear.CalGrad(grad,linear.new_weight,dtrain);
-        if(l1_reg == 0.0f)
-            l1_grad = grad;
-        else
-            SetDirL1Sign(l1_grad,grad,linear.new_weight);
+        SetDirL1Sign(l1_grad,grad,linear.new_weight);
         y[k % memory_size] = grad - y[k % memory_size];
         s[k % memory_size] = linear.new_weight - linear.old_weight;
         linear.old_weight = linear.new_weight;
