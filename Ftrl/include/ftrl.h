@@ -298,8 +298,10 @@ class Ftrl
           pair_vec.push_back(p);
         }
       }
-      LOG(INFO) << "test AUC is :" << Metric::CalAUC(pair_vec) 
-                << " COPC : " << Metric::CalCOPC(pair_vec);
+      LOG(INFO) << "test AUC is : " << Metric::CalAUC(pair_vec) 
+                << " COPC : " << Metric::CalCOPC(pair_vec) 
+                << " MSE : " << Metric::CalMSE(pair_vec)
+                << " MAE : " << Metric::CalMAE(pair_vec);
     }
     
     inline int Sign(double val) {
