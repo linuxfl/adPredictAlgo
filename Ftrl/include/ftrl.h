@@ -44,11 +44,13 @@ class Ftrl
       l1_reg = 0.0f;
       alpha = 0.01f;
       beta = 1.0f;
+      base_score = 0.5f;
 
       num_feature = 0;
       model_in = "NULL";
       model_out = "lr_model.dat";
       memory_in = "batch";
+      pred_out = "pred.txt";
       num_feature = 0;
     }
 
@@ -66,6 +68,7 @@ class Ftrl
       model_in = "NULL";
       model_out = "lr_model.dat";
       memory_in = "stream";
+      pred_out = "pred.txt";
       dtrain = nullptr;
       num_feature = 0;
     }
@@ -88,14 +91,24 @@ class Ftrl
     }
 
     inline void SetParam(const char *name,const char *val) {
-      if (!strcmp(name,"model_in")) model_in = val;
-      if (!strcmp(name,"model_out")) model_out = val;
-      if (!strcmp(name,"l1_reg")) l1_reg = static_cast<float>(atof(val));
-      if (!strcmp(name,"l2_reg")) l2_reg = static_cast<float>(atof(val));
-      if (!strcmp(name,"alpha")) alpha = static_cast<float>(atof(val));
-      if (!strcmp(name,"beta")) beta = static_cast<float>(atof(val));
-      if (!strcmp(name,"num_feature")) num_feature = static_cast<size_t>(atoi(val));
-      if (!strcmp(name,"base_score")) base_score = static_cast<float>(atof(val));
+      if (!strcmp(name,"model_in")) 
+        model_in = val;
+      if (!strcmp(name,"model_out")) 
+        model_out = val;
+      if (!strcmp(name,"l1_reg")) 
+        l1_reg = static_cast<float>(atof(val));
+      if (!strcmp(name,"l2_reg")) 
+        l2_reg = static_cast<float>(atof(val));
+      if (!strcmp(name,"alpha")) 
+        alpha = static_cast<float>(atof(val));
+      if (!strcmp(name,"beta")) 
+        beta = static_cast<float>(atof(val));
+      if (!strcmp(name,"num_feature")) 
+        num_feature = static_cast<size_t>(atoi(val));
+      if (!strcmp(name,"base_score")) 
+        base_score = static_cast<float>(atof(val));
+      if (!strcmp(name,"pred_out"))
+        pred_out = val;
     }
 
     inline void Run()
@@ -191,6 +204,7 @@ class Ftrl
         }
       }
       TaskPred();
+      PredOut();
     }
 
     inline void ParseLine(const std::string line,instance &ins) {
@@ -249,6 +263,7 @@ class Ftrl
       }
       TaskPred();
       train_stream.close();
+      PredOut();
     }
 
     virtual void LoadModel(const char *model_in,unsigned *numfea) {
@@ -285,9 +300,19 @@ class Ftrl
       }
       ofs.close();
     }
+    
+    virtual void PredOut() {
+      dmlc::Stream *fo = dmlc::Stream::Create(pred_out.c_str(),"w");
+      dmlc::ostream os(fo);
+      for(auto iter = pair_vec.begin();iter != pair_vec.end();iter++) {
+        os << iter->score << "\n";
+      }
+      os.set_stream(NULL);
+      delete fo;
+    }
 
     void TaskPred() {
-      std::vector<Metric::pair_t> pair_vec;
+      pair_vec.clear();
       dtest->BeforeFirst();
       while(dtest->Next()) {
         const dmlc::RowBlock<unsigned> &batch = dtest->Value();
@@ -335,10 +360,12 @@ class Ftrl
   private:
     double *w,*n,*z;
     size_t num_feature;
+    std::vector<Metric::pair_t> pair_vec;
 
     std::string model_in;
     std::string model_out;
     std::string memory_in;
+    std::string pred_out;
 };
 }
 #endif
