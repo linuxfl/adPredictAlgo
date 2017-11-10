@@ -157,9 +157,9 @@ class Ftrl
                 << " l2_reg : " << l2_reg;
 
       //init weight and ftrl paramter
-      w = new double[num_feature];
-      n = new double[num_feature];
-      z = new double[num_feature];
+      w = new float[num_feature];
+      n = new float[num_feature];
+      z = new float[num_feature];
 
       InitBaseScore();
     }
@@ -174,8 +174,8 @@ class Ftrl
           dmlc::Row<unsigned> v = batch[i];
           for(unsigned j = 0;j < v.length;j++) {
             unsigned fea_index = v.index[j];
-            double z_val = z[fea_index];
-            double n_val = n[fea_index];
+            float z_val = z[fea_index];
+            float n_val = n[fea_index];
 
             if (fabs(z_val) < l1_reg) {
               w[fea_index] = 0;
@@ -184,13 +184,13 @@ class Ftrl
                 (l2_reg + (beta + std::sqrt(n_val)) / alpha);
             }
           }
-          double grad = PredIns(v) - v.get_label();
+          float grad = PredIns(v) - v.get_label();
           for(unsigned j = 0;j < v.length;j++) {
             unsigned fea_index = v.index[j];
-            double w_val = w[fea_index];
-            double n_val = n[fea_index];
+            float w_val = w[fea_index];
+            float n_val = n[fea_index];
             
-            double theta = (std::sqrt(n_val + grad * grad) \
+            float theta = (std::sqrt(n_val + grad * grad) \
                 - std::sqrt(n_val)) / alpha;
             z[fea_index] += grad - theta * w_val;
             n[fea_index] += grad * grad;
@@ -222,8 +222,8 @@ class Ftrl
       for(size_t i = 0;i < ins_len;i++)
       {
         unsigned fea_index = fea_vec[i];
-        double z_val = z[fea_index];
-        double n_val = n[fea_index];
+        float z_val = z[fea_index];
+        float n_val = n[fea_index];
 
         if (fabs(z_val) < l1_reg) {
           w[fea_index] = 0;
@@ -232,13 +232,13 @@ class Ftrl
             (l2_reg + (beta + std::sqrt(n_val)) / alpha);
           }
       }
-      double grad = PredIns(ins) - ins.label;
+      float grad = PredIns(ins) - ins.label;
       for(size_t i = 0;i < ins_len;i++) {
         unsigned fea_index = fea_vec[i];
-        double w_val = w[fea_index];
-        double n_val = n[fea_index];
+        float w_val = w[fea_index];
+        float n_val = n[fea_index];
             
-        double theta = (std::sqrt(n_val + grad * grad) \
+        float theta = (std::sqrt(n_val + grad * grad) \
             - std::sqrt(n_val)) / alpha;
         z[fea_index] += grad - theta * w_val;
         n[fea_index] += grad * grad;
@@ -318,7 +318,7 @@ class Ftrl
         const dmlc::RowBlock<unsigned> &batch = dtest->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
-          double score = PredIns(v);
+          float score = PredIns(v);
           Metric::pair_t p(score,v.get_label());
           pair_vec.push_back(p);
         }
@@ -329,16 +329,16 @@ class Ftrl
                 << " MAE : " << Metric::CalMAE(pair_vec);
     }
     
-    inline int Sign(double val) {
+    inline int Sign(float val) {
       return val > 0.0f?1:-1;
     }
 
-    inline double Sigmoid(double inx) {
+    inline float Sigmoid(float inx) {
       return 1.0f / (1.0f + std::exp(-inx));    
     }
   
-    inline double PredIns(const dmlc::Row<unsigned> &v) {
-      double inner = 0.0f;
+    inline float PredIns(const dmlc::Row<unsigned> &v) {
+      float inner = 0.0f;
       for(unsigned i = 0;i < v.length;i++) {
         inner += w[v.index[i]];
       }
@@ -346,8 +346,8 @@ class Ftrl
       return Sigmoid(inner);
     }
 
-    inline double PredIns(const instance &ins) {
-      double inner = 0.0f;
+    inline float PredIns(const instance &ins) {
+      float inner = 0.0f;
       std::vector<unsigned> fea_vec = ins.fea_vec;
       size_t inslen = fea_vec.size();
       for(size_t i = 0;i < inslen;i++) {
@@ -358,7 +358,7 @@ class Ftrl
     }  
 
   private:
-    double *w,*n,*z;
+    float *w,*n,*z;
     size_t num_feature;
     std::vector<Metric::pair_t> pair_vec;
 
