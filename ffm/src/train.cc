@@ -5,11 +5,18 @@ int main(int argc,char **argv)
   if(argc < 3)
   {
     LOG(FATAL) << "Usage:train_data param=val";
-    //std::cerr << "Usage:train_data test_data param=val" << std::endl;
     return 0;
   }
 
-  adPredictAlgo::FTRL *ftrl = nullptr;
+  dmlc::RowBlockIter<unsigned> *test_data
+      = dmlc::RowBlockIter<unsigned>::Create
+      (argv[2],
+      0,  
+      1,  
+      "libsvm"
+      );  
+ 
+  adPredictAlgo::FTRL *ftrl = new adPredictAlgo::FTRL(argv[1],test_data);
   
   char name[256],val[256];
   for(int i = 2;i < argc;i++)

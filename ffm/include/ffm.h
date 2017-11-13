@@ -35,14 +35,15 @@ public:
 
   virtual ~FFMModel() {
     if(w != nullptr)
-      delete w;
+      delete [] w;
     if(v != nullptr)
-      delete v;
+      delete [] v;
   }
 
   inline void Init() {
-    CHECK(n == 0 || m == 0 || d == 0) << "the ffm parameter must be inital.";
-    size_t ffm_model_size = n * m * d;
+    CHECK(n != 0 || m != 0 || d != 0) << "the ffm parameter must be inital.";
+    ffm_model_size = n * m * d;
+    std::cout << ffm_model_size << std::endl;
 
     if(w == nullptr)
       w = new float[n];
@@ -54,9 +55,9 @@ public:
   {
     if(!strcmp(name,"num_fea"))
       n = static_cast<size_t>(atoi(val));
-    if(!strcmp(name,"num_feild"))
+    if(!strcmp(name,"num_field"))
       m = static_cast<size_t>(atoi(val));
-    if(!strcmp(name,"fm_dim"))
+    if(!strcmp(name,"ffm_dim"))
       d = static_cast<size_t>(atoi(val));
   }
 
@@ -71,6 +72,7 @@ public:
 
   virtual void LoadModel(const char *file) {
   }
+
 public:
   size_t n; // the number of feature
   size_t m; // the number of feild

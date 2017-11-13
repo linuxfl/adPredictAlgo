@@ -9,13 +9,15 @@
 #include <cstring>
 
 #include "ffm.h"
+#include "str_util.h"
+#include "metric.h"
 
 namespace adPredictAlgo {
 class FTRL {
 
 public:
-  FTRL(char *dtrain)
-    :dtrain(dtrain),n(nullptr),
+  FTRL(char *dtrain,dmlc::RowBlockIter<unsigned> *dtest)
+    :dtrain(dtrain),dtest(dtest),n(nullptr),
     z(nullptr),n_ffm(nullptr),z_ffm(nullptr)
    {
     alpha = 0.1f;
@@ -27,6 +29,7 @@ public:
     l2_reg = 0.1f;
     l1_ffm_reg = 0.0f;
     l2_ffm_reg = 0.1f;
+    task = "train";
   }
 
   virtual ~FTRL() 
@@ -44,10 +47,12 @@ public:
   inline void Init()
   {
     ffm.Init();    
-
+    double memory_use = (ffm.n * 3 + ffm.ffm_model_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
+    LOG(INFO) << "num_fea=" << ffm.n << ",ffm_dim=" << ffm.d 
+              << ",num_field="<< ffm.m << ",use_memory=" << memory_use << "GB";
+   
     z = new float[ffm.n];
     n = new float[ffm.n];
-    
     z_ffm = new float[ffm.ffm_model_size];
     n_ffm = new float[ffm.ffm_model_size];
   }
@@ -69,6 +74,8 @@ public:
       l1_ffm_reg = static_cast<float>(atof(val));
     if(!strcmp(name,"l2_ffm_reg"))
       l2_ffm_reg = static_cast<float>(atof(val));
+    if(!strcmp(name,"task"))
+      task = val;
 
     ffm.SetParam(name,val);
   }
@@ -80,41 +87,72 @@ public:
 
     std::string line;
     Instance ins;
+    float logloss = 0.0f;
+    int cnt = 0;
     while(getline(train_stream,line)) {
       ins.clear();
       ParseLine(line,ins);
-      UpdateOneIter(ins);
+      float loss = UpdateOneIter(ins);
+      logloss += loss;
+      cnt++;
+      if(cnt % 100000 == 0)
+      {  LOG(INFO) << "logloss = " << logloss / cnt;
+        TaskPred();
+        }
     }
   }
 
-  inline void TaskPred()
+    // 23:123444 v.index[j]:v.get_value(j) 
+  inline float PredIns(const dmlc::Row<unsigned> &v) {
+    float inner = 0.0f;
+    for(unsigned i = 0;i < v.length;++i)
+    {
+      uint32_t fea_index = v.get_value(i);
+      inner += ffm.w[fea_index];
+    }
+
+    for(size_t i = 0;i < v.length;++i)
+    {
+      uint32_t fea_index = v.get_value(i);
+      uint32_t field_index = v.index[i];
+      for(size_t k = 0;k < ffm.d;++k) {
+        uint32_t real_fea_index = 
+                  (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
+        inner += ffm.v[real_fea_index];
+      }
+    }
+    return Sigmoid(inner);
+  }
+
+  void TaskPred()
   {
-    
-  }
-
-  inline void StringSplit(const std::string &line,
-                          std::string seperator,
-                          std::vector<std::string> &result) {
-    std::string::size_type first_pos = line.find(seperator);
-    std::string::size_type second_pos = 0;
-    while(std::string::npos != first_pos) {
-      result.push_back(line.substr(first_pos,second_pos - first_pos));
-
-      first_pos = second_pos + seperator.size();
-      second_pos = line.find(seperator);
-    }
-  }
+      pair_vec.clear();
+      dtest->BeforeFirst();
+      while(dtest->Next()) {
+        const dmlc::RowBlock<unsigned> &batch = dtest->Value();
+        for(size_t i = 0;i < batch.size;i++) {
+          dmlc::Row<unsigned> v = batch[i];
+            float score = PredIns(v);
+            Metric::pair_t p(score,v.get_label());
+            pair_vec.push_back(p);
+        }   
+      }   
+      LOG(INFO) << "test AUC is : " << Metric::CalAUC(pair_vec) 
+                << " COPC : " << Metric::CalCOPC(pair_vec) 
+                << " MSE : " << Metric::CalMSE(pair_vec)
+                << " MAE : " << Metric::CalMAE(pair_vec);
+  }   
 
   virtual void ParseLine(const std::string &line,Instance &ins)
   {
     std::vector<std::string> fea_vec;
-    StringSplit(line," ",fea_vec);
+    util::str_util::split(line," ",fea_vec);
     ins.label = static_cast<int>(atoi(fea_vec[0].c_str()));
 
     for(size_t i = 1;i < fea_vec.size();i++) {
       std::vector<std::string> kvs;
       ffm_node _node;
-      StringSplit(fea_vec[i],":",kvs);
+      util::str_util::split(fea_vec[i],":",kvs);
 
       _node.field_index = static_cast<uint32_t>(atoi(kvs[0].c_str()));
       _node.fea_index = static_cast<uint32_t>(atoi(kvs[1].c_str()));
@@ -129,7 +167,7 @@ public:
   virtual float PredictRaw(const Instance &ins)
   {
     size_t ins_len = ins.fea_vec.size();
-    std::vector<ffm_node> fea_vec;
+    std::vector<ffm_node> fea_vec = ins.fea_vec;
     float sum = 0.0f;
     for(size_t index = 0;index < ins_len;++index)
     {
@@ -149,7 +187,7 @@ public:
       uint32_t field_index = fea_vec[index].field_index;
       for(size_t k = 0;k < ffm.d;++k) {
         uint32_t real_fea_index = 
-                  (fea_index - 1) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
+                  (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
         if(std::fabs(z_ffm[real_fea_index]) < l1_ffm_reg){
           ffm.v[real_fea_index] = 0.0f;
         }else{
@@ -188,29 +226,27 @@ public:
       z[fea_index] += grad - theta * ffm.w[fea_index];
       n[fea_index] += grad * grad;
     }
-
     std::map<uint32_t,float> sum_ffm;
     for(size_t i = 0;i < ins_len;++i)
     {
       uint32_t fea_x = fea_vec[i].fea_index;
       uint32_t field_x = fea_vec[i].field_index;
       uint32_t real_fea_x = 
-                  (fea_x - 1) * ffm.m * ffm.d + (field_x - 1) * ffm.d;
+                  (fea_x) * ffm.m * ffm.d + (field_x - 1) * ffm.d;
 
       for(size_t j = 0; j < ins_len;++j)
       {
         uint32_t fea_y = fea_vec[j].fea_index;
         uint32_t field_y = fea_vec[j].field_index;
         uint32_t real_fea_y = 
-                  (fea_y - 1) * ffm.m * ffm.d + (field_y - 1) * ffm.d;
-        
+                  (fea_y) * ffm.m * ffm.d + (field_y - 1) * ffm.d;
         if(i != j) {
           for(size_t k = 0;k < ffm.d;++k) {
             uint32_t real_index = real_fea_x + k;
             if(sum_ffm.find(real_index) != sum_ffm.end())
-              sum_ffm[real_index] += ffm.w[real_fea_y + k];
+              sum_ffm[real_index] += ffm.v[real_fea_y + k];
             else
-              sum_ffm[real_index] = ffm.w[real_fea_y + k];
+              sum_ffm[real_index] = ffm.v[real_fea_y + k];
           }
         }
       }
@@ -222,25 +258,34 @@ public:
       uint32_t field_index = fea_vec[index].field_index;
       for(size_t k = 0;k < ffm.d;++k) {
         uint32_t real_fea_index = 
-                  (fea_index - 1) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
+                  (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
         float g_ffm = grad * sum_ffm[real_fea_index];
         float theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index]));
-        z_ffm[real_fea_index] += g_ffm - theta * ffm.w[real_fea_index];
+        z_ffm[real_fea_index] += g_ffm - theta * ffm.v[real_fea_index];
         n_ffm[real_fea_index] += g_ffm * g_ffm;
       }
     }
   }
 
-  virtual void UpdateOneIter(const Instance &ins) 
+  inline float logloss(float p,int l) {
+    if(l == 0)
+        return -1.0f * std::log(1.0f - p);
+    else
+        return -1.0f * std::log(p);
+  }
+
+  virtual int UpdateOneIter(const Instance &ins) 
   {
     float p = Predict(PredictRaw(ins));
     int label = ins.label;
     float grad = p - label;
     AuxUpdate(ins,grad);
+    return logloss(p,label);
   }
 
   virtual void Run()
   {
+    this->Init();
     if(task == "train")
       this->TaskTrain();
     else if(task == "pred")
@@ -251,6 +296,7 @@ public:
 
 private:
   char *dtrain;
+  dmlc::RowBlockIter<unsigned> *dtest;
 
   FFMModel ffm;
   float *n,*z;
@@ -263,6 +309,7 @@ private:
   float l1_ffm_reg,l2_ffm_reg;
 
   std::string task;
+  std::vector<Metric::pair_t> pair_vec;
 }; //end class
 
 } // end namespace
