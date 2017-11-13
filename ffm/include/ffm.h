@@ -1,5 +1,6 @@
 #ifndef __ADPREDICTALGO_FFM_
 #define __ADPREDICTALGO_FFM_
+
 #include <vector>
 #include <dmlc/data.h>
 #include <dmlc/io.h>
@@ -22,13 +23,14 @@ typedef struct ins{
     fea_vec.clear();
   }
 }Instance;
-class FFMModel {
 
+class FFMModel {
 public:
   FFMModel():w(nullptr),v(nullptr) {
     n = 0;
     m = 0;
     d = 0;
+    ffm_model_size = 0;
   }
 
   virtual ~FFMModel() {
@@ -39,11 +41,13 @@ public:
   }
 
   inline void Init() {
-//    CHECK(n == 0 || m == 0 || d == 0) << "the ffm parameter must be inital."l
+    CHECK(n == 0 || m == 0 || d == 0) << "the ffm parameter must be inital.";
+    size_t ffm_model_size = n * m * d;
+
     if(w == nullptr)
       w = new float[n];
     if(v == nullptr)
-      v = new float[n*m*d];
+      v = new float[ffm_model_size];
   }
 
   inline void SetParam(const char *name,const char *val)
@@ -56,10 +60,22 @@ public:
       d = static_cast<size_t>(atoi(val));
   }
 
+  inline float *operator [] (size_t i)
+  {
+    return (w + i);
+  }
+
+  virtual void DumpModel(const char *file) {
+
+  }
+
+  virtual void LoadModel(const char *file) {
+  }
 public:
   size_t n; // the number of feature
   size_t m; // the number of feild
-  size_t d; // dim of the fm
+  size_t d; // dim of the fm 
+  size_t ffm_model_size;
 
   float *w; // lr parameter
   float *v; // ffm parameter

@@ -48,8 +48,8 @@ public:
     z = new float[ffm.n];
     n = new float[ffm.n];
     
-    z_ffm = new float[ffm.m * ffm.n * ffm.d];
-    n_ffm = new float[ffm.m * ffm.n * ffm.d];
+    z_ffm = new float[ffm.ffm_model_size];
+    n_ffm = new float[ffm.ffm_model_size];
   }
 
   inline void SetParam(const char *name,const char *val) {
@@ -92,8 +92,38 @@ public:
     
   }
 
+  inline void StringSplit(const std::string &line,
+                          std::string seperator,
+                          std::vector<std::string> &result) {
+    std::string::size_type first_pos = line.find(seperator);
+    std::string::size_type second_pos = 0;
+    while(std::string::npos != first_pos) {
+      result.push_back(line.substr(first_pos,second_pos - first_pos));
+
+      first_pos = second_pos + seperator.size();
+      second_pos = line.find(seperator);
+    }
+  }
+
   virtual void ParseLine(const std::string &line,Instance &ins)
   {
+    std::vector<std::string> fea_vec;
+    StringSplit(line," ",fea_vec);
+    ins.label = static_cast<int>(atoi(fea_vec[0].c_str()));
+
+    for(size_t i = 1;i < fea_vec.size();i++) {
+      std::vector<std::string> kvs;
+      ffm_node _node;
+      StringSplit(fea_vec[i],":",kvs);
+
+      _node.field_index = static_cast<uint32_t>(atoi(kvs[0].c_str()));
+      _node.fea_index = static_cast<uint32_t>(atoi(kvs[1].c_str()));
+
+      CHECK(_node.field_index <= ffm.m) << "field index must less then the number of field.";
+      CHECK(_node.fea_index < ffm.n) << "fea index must less then the number of fea";
+
+      ins.fea_vec.push_back(_node);
+    }
   }
 
   virtual float PredictRaw(const Instance &ins)
