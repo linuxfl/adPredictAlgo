@@ -30,6 +30,7 @@ public:
     l1_ffm_reg = 0.0f;
     l2_ffm_reg = 0.1f;
     task = "train";
+    model_out = "ffm_model.dat";
   }
 
   virtual ~FTRL() 
@@ -100,6 +101,7 @@ public:
       }
     }
     TaskPred();
+    DumpModel(model_out.c_str());
   }
 
     // 23:123444 v.index[j]:v.get_value(j) 
@@ -289,6 +291,12 @@ public:
       LOG(FATAL) << "error task!";
   }
 
+  virtual void DumpModel(const char *model_out) {
+    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
+    ffm.DumpModel(fo);
+    delete fo;
+  }
+
 private:
   char *dtrain;
   dmlc::RowBlockIter<unsigned> *dtest;
@@ -304,6 +312,8 @@ private:
   float l1_ffm_reg,l2_ffm_reg;
 
   std::string task;
+  std::string model_out;
+
   std::vector<Metric::pair_t> pair_vec;
 }; //end class
 

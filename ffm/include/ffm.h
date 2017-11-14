@@ -61,8 +61,9 @@ public:
     return (w + i);
   }
 
-  virtual void DumpModel(const char *file) {
-
+  virtual void DumpModel(dmlc::Stream *fo) {
+    if(w != nullptr)
+      fo->Write(w,sizeof(float) * ffm_model_size);
   }
 
   virtual void LoadModel(const char *file) {
