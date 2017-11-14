@@ -43,7 +43,6 @@ public:
   inline void Init() {
     CHECK(n != 0 || m != 0 || d != 0) << "the ffm parameter must be inital.";
     ffm_model_size = n * m * d;
-    std::cout << ffm_model_size << std::endl;
 
     if(w == nullptr)
       w = new float[n];

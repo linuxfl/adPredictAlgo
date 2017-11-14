@@ -66,7 +66,17 @@ class Metric
       }
       return mae / p.size();
     }
-
+    
+    static double CalLogLoss(const std::vector<pair_t> &p) {
+      float logloss = 0;
+      for(auto iter = p.begin();iter != p.end();iter++) {
+        if(iter->t_label == 1)
+          logloss += -1.0f * std::log(iter->score);
+        else
+          logloss += -1.0f * std::log(1.0f - iter->score);
+      }
+      return logloss / p.size();
+    }
 };//class Metric
 }//namespace
 

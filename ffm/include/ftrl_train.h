@@ -87,19 +87,18 @@ public:
 
     std::string line;
     Instance ins;
-    float logloss = 0.0f;
     int cnt = 0;
     while(getline(train_stream,line)) {
       ins.clear();
       ParseLine(line,ins);
-      float loss = UpdateOneIter(ins);
-      logloss += loss;
+      UpdateOneIter(ins);
       cnt++;
       if(cnt % 100000 == 0)
-      {  LOG(INFO) << "logloss = " << logloss / cnt;
+      {  
         TaskPred();
-        }
+      }
     }
+    TaskPred();
   }
 
     // 23:123444 v.index[j]:v.get_value(j) 
@@ -137,10 +136,9 @@ public:
             pair_vec.push_back(p);
         }   
       }   
-      LOG(INFO) << "test AUC is : " << Metric::CalAUC(pair_vec) 
-                << " COPC : " << Metric::CalCOPC(pair_vec) 
-                << " MSE : " << Metric::CalMSE(pair_vec)
-                << " MAE : " << Metric::CalMAE(pair_vec);
+      LOG(INFO) << "test AUC=" << Metric::CalAUC(pair_vec) 
+                << ",COPC=" << Metric::CalCOPC(pair_vec)
+                << ",Logloss=" << Metric::CalLogLoss(pair_vec);
   }   
 
   virtual void ParseLine(const std::string &line,Instance &ins)
@@ -267,20 +265,13 @@ public:
     }
   }
 
-  inline float logloss(float p,int l) {
-    if(l == 0)
-        return -1.0f * std::log(1.0f - p);
-    else
-        return -1.0f * std::log(p);
-  }
 
-  virtual int UpdateOneIter(const Instance &ins) 
+  virtual void UpdateOneIter(const Instance &ins) 
   {
     float p = Predict(PredictRaw(ins));
     int label = ins.label;
     float grad = p - label;
     AuxUpdate(ins,grad);
-    return logloss(p,label);
   }
 
   virtual void Run()
