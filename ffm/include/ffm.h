@@ -16,8 +16,8 @@ typedef struct ins{
   int label;
   std::vector<ffm_node> fea_vec;
 
-  ~ins(){}
-
+  virtual ~ins(){}
+  
   void clear(){
     label = 0;
     fea_vec.clear();
@@ -26,10 +26,17 @@ typedef struct ins{
 
 class FFMModel {
 public:
+  struct ModelParam {
+    size_t n; // number of the feature
+    size_t m; // number of the field
+    size_t d; // number of the ffm dim
+
+    ModelParam() {
+      memset(this,0,sizeof(ModelParam));
+    }
+  };
+
   FFMModel():w(nullptr) {
-    n = 0;
-    m = 0;
-    d = 0;
     ffm_model_size = 0;
   }
 
@@ -39,8 +46,8 @@ public:
   }
 
   inline void Init() {
-    CHECK(n != 0 || m != 0 || d != 0) << "the ffm parameter must be inital.";
-    ffm_model_size = n + n * m * d;
+    CHECK(param.n != 0 || param.m != 0 || param.d != 0) << "the ffm parameter must be inital.";
+    ffm_model_size = param.n + param.n * param.m * param.d;
 
     if(w == nullptr)
       w = new float[ffm_model_size];
@@ -49,34 +56,43 @@ public:
   inline void SetParam(const char *name,const char *val)
   {
     if(!strcmp(name,"num_fea"))
-      n = static_cast<size_t>(atoi(val));
+      param.n = static_cast<size_t>(atoi(val));
     if(!strcmp(name,"num_field"))
-      m = static_cast<size_t>(atoi(val));
+      param.m = static_cast<size_t>(atoi(val));
     if(!strcmp(name,"ffm_dim"))
-      d = static_cast<size_t>(atoi(val));
-  }
-
-  inline float *operator [] (size_t i)
-  {
-    return (w + i);
+      param.d = static_cast<size_t>(atoi(val));
   }
 
   virtual void DumpModel(dmlc::Stream *fo) {
+    fo->Write("binf",4);
+    fo->Write(&param,sizeof(ModelParam));
     if(w != nullptr)
       fo->Write(w,sizeof(float) * ffm_model_size);
   }
 
-  virtual void LoadModel(const char *file) {
+  virtual void LoadModel(dmlc::Stream *fi) {
+    std::string header;
+    header.resize(4);
+    CHECK(fi->Read(&header[0],4) != 0) << "invalid model.";
+    if(header == "binf") {
+      fi->Read(&param,sizeof(ModelParam));
+      ffm_model_size = param.n * param.m * param.d + param.n;
+      if(w == nullptr) {
+        w = new float[ffm_model_size];
+        fi->Read(w,sizeof(float) * ffm_model_size);
+      }
+    }
+
   }
 
-public:
-  size_t n; // the number of feature
-  size_t m; // the number of feild
-  size_t d; // dim of the fm 
-  size_t ffm_model_size;
+  size_t GetModelSize() const {
+    return ffm_model_size;
+  }
 
+  ModelParam param;
   float *w; // ffm model parameter
-  
+private:
+  size_t ffm_model_size;
 };
 
 }//end class FFM

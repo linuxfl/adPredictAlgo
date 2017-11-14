@@ -48,13 +48,13 @@ public:
   inline void Init()
   {
     ffm.Init();
-    size_t ftrl_param_size = ffm.n * ffm.m * ffm.d;
-    double memory_use = (ffm.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
-    LOG(INFO) << "num_fea=" << ffm.n << ",ffm_dim=" << ffm.d 
-              << ",num_field="<< ffm.m << ",use_memory=" << memory_use << "GB";
+    size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
+    double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
+    LOG(INFO) << "num_fea=" << ffm.param.n << ",ffm_dim=" << ffm.param.d 
+              << ",num_field="<< ffm.param.m << ",use_memory=" << memory_use << "GB";
    
-    z = new float[ffm.n];
-    n = new float[ffm.n];
+    z = new float[ffm.param.n];
+    n = new float[ffm.param.n];
     z_ffm = new float[ftrl_param_size];
     n_ffm = new float[ftrl_param_size];
   }
@@ -117,9 +117,9 @@ public:
     {
       uint32_t fea_index = v.get_value(i);
       uint32_t field_index = v.index[i];
-      for(size_t k = 0;k < ffm.d;++k) {
+      for(size_t k = 0;k < ffm.param.d;++k) {
         uint32_t map_fea_index = 
-                  ffm.n + (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
+                  ffm.param.n + (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
         inner += ffm.w[map_fea_index];
       }
     }
@@ -158,8 +158,8 @@ public:
       _node.field_index = static_cast<uint32_t>(atoi(kvs[0].c_str()));
       _node.fea_index = static_cast<uint32_t>(atoi(kvs[1].c_str()));
 
-      CHECK(_node.field_index <= ffm.m) << "field index must less then the number of field.";
-      CHECK(_node.fea_index < ffm.n) << "fea index must less then the number of fea";
+      CHECK(_node.field_index <= ffm.param.m) << "field index must less then the number of field.";
+      CHECK(_node.fea_index < ffm.param.n) << "fea index must less then the number of fea";
 
       ins.fea_vec.push_back(_node);
     }
@@ -186,10 +186,10 @@ public:
     {
       uint32_t fea_index = fea_vec[index].fea_index;
       uint32_t field_index = fea_vec[index].field_index;
-      for(size_t k = 0;k < ffm.d;++k) {
+      for(size_t k = 0;k < ffm.param.d;++k) {
         uint32_t real_fea_index = 
-                  (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
-        uint32_t map_fea_index = real_fea_index + ffm.n;
+                  (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
+        uint32_t map_fea_index = real_fea_index + ffm.param.n;
 
         if(std::fabs(z_ffm[real_fea_index]) < l1_ffm_reg){
           ffm.w[map_fea_index] = 0.0f;
@@ -235,16 +235,16 @@ public:
       uint32_t fea_x = fea_vec[i].fea_index;
       uint32_t field_x = fea_vec[i].field_index;
       uint32_t real_fea_x = 
-                  ffm.n + (fea_x) * ffm.m * ffm.d + (field_x - 1) * ffm.d;
+                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
 
       for(size_t j = 0; j < ins_len;++j)
       {
         uint32_t fea_y = fea_vec[j].fea_index;
         uint32_t field_y = fea_vec[j].field_index;
         uint32_t real_fea_y = 
-                  ffm.n + (fea_y) * ffm.m * ffm.d + (field_y - 1) * ffm.d;
+                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
         if(i != j) {
-          for(size_t k = 0;k < ffm.d;++k) {
+          for(size_t k = 0;k < ffm.param.d;++k) {
             uint32_t real_index = real_fea_x + k;
             if(sum_ffm.find(real_index) != sum_ffm.end())
               sum_ffm[real_index] += ffm.w[real_fea_y + k];
@@ -259,10 +259,10 @@ public:
     {
       uint32_t fea_index = fea_vec[index].fea_index;
       uint32_t field_index = fea_vec[index].field_index;
-      for(size_t k = 0;k < ffm.d;++k) {
+      for(size_t k = 0;k < ffm.param.d;++k) {
         uint32_t real_fea_index = 
-                  (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
-        uint32_t map_fea_index = real_fea_index + ffm.n;
+                  (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
+        uint32_t map_fea_index = real_fea_index + ffm.param.n;
         float g_ffm = grad * sum_ffm[map_fea_index];
         float theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index]));
         z_ffm[real_fea_index] += g_ffm - theta * ffm.w[map_fea_index];
@@ -297,6 +297,11 @@ public:
     delete fo;
   }
 
+  virtual void LoadModel(const char *model_in) {
+    dmlc::Stream *fi = dmlc::Stream::Create(model_in,"r");
+    ffm.LoadModel(fi);
+    delete fi;
+  }
 private:
   char *dtrain;
   dmlc::RowBlockIter<unsigned> *dtest;
