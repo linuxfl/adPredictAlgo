@@ -46,15 +46,16 @@ public:
 
   inline void Init()
   {
-    ffm.Init();    
-    double memory_use = (ffm.n * 3 + ffm.ffm_model_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
+    ffm.Init();
+    size_t ftrl_param_size = ffm.n * ffm.m * ffm.d;
+    double memory_use = (ffm.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
     LOG(INFO) << "num_fea=" << ffm.n << ",ffm_dim=" << ffm.d 
               << ",num_field="<< ffm.m << ",use_memory=" << memory_use << "GB";
    
     z = new float[ffm.n];
     n = new float[ffm.n];
-    z_ffm = new float[ffm.ffm_model_size];
-    n_ffm = new float[ffm.ffm_model_size];
+    z_ffm = new float[ftrl_param_size];
+    n_ffm = new float[ftrl_param_size];
   }
 
   inline void SetParam(const char *name,const char *val) {
@@ -115,9 +116,9 @@ public:
       uint32_t fea_index = v.get_value(i);
       uint32_t field_index = v.index[i];
       for(size_t k = 0;k < ffm.d;++k) {
-        uint32_t real_fea_index = 
-                  (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
-        inner += ffm.v[real_fea_index];
+        uint32_t map_fea_index = 
+                  ffm.n + (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
+        inner += ffm.w[map_fea_index];
       }
     }
     return Sigmoid(inner);
@@ -186,13 +187,15 @@ public:
       for(size_t k = 0;k < ffm.d;++k) {
         uint32_t real_fea_index = 
                   (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
+        uint32_t map_fea_index = real_fea_index + ffm.n;
+
         if(std::fabs(z_ffm[real_fea_index]) < l1_ffm_reg){
-          ffm.v[real_fea_index] = 0.0f;
+          ffm.w[map_fea_index] = 0.0f;
         }else{
-          ffm.v[real_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
+          ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
                           ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
         }
-        sum += ffm.v[real_fea_index];
+        sum += ffm.w[map_fea_index];
       }
     }
     return sum;
@@ -230,21 +233,21 @@ public:
       uint32_t fea_x = fea_vec[i].fea_index;
       uint32_t field_x = fea_vec[i].field_index;
       uint32_t real_fea_x = 
-                  (fea_x) * ffm.m * ffm.d + (field_x - 1) * ffm.d;
+                  ffm.n + (fea_x) * ffm.m * ffm.d + (field_x - 1) * ffm.d;
 
       for(size_t j = 0; j < ins_len;++j)
       {
         uint32_t fea_y = fea_vec[j].fea_index;
         uint32_t field_y = fea_vec[j].field_index;
         uint32_t real_fea_y = 
-                  (fea_y) * ffm.m * ffm.d + (field_y - 1) * ffm.d;
+                  ffm.n + (fea_y) * ffm.m * ffm.d + (field_y - 1) * ffm.d;
         if(i != j) {
           for(size_t k = 0;k < ffm.d;++k) {
             uint32_t real_index = real_fea_x + k;
             if(sum_ffm.find(real_index) != sum_ffm.end())
-              sum_ffm[real_index] += ffm.v[real_fea_y + k];
+              sum_ffm[real_index] += ffm.w[real_fea_y + k];
             else
-              sum_ffm[real_index] = ffm.v[real_fea_y + k];
+              sum_ffm[real_index] = ffm.w[real_fea_y + k];
           }
         }
       }
@@ -257,9 +260,10 @@ public:
       for(size_t k = 0;k < ffm.d;++k) {
         uint32_t real_fea_index = 
                   (fea_index) * ffm.m * ffm.d + (field_index - 1) * ffm.d + k;
-        float g_ffm = grad * sum_ffm[real_fea_index];
+        uint32_t map_fea_index = real_fea_index + ffm.n;
+        float g_ffm = grad * sum_ffm[map_fea_index];
         float theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index]));
-        z_ffm[real_fea_index] += g_ffm - theta * ffm.v[real_fea_index];
+        z_ffm[real_fea_index] += g_ffm - theta * ffm.w[map_fea_index];
         n_ffm[real_fea_index] += g_ffm * g_ffm;
       }
     }

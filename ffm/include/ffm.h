@@ -26,7 +26,7 @@ typedef struct ins{
 
 class FFMModel {
 public:
-  FFMModel():w(nullptr),v(nullptr) {
+  FFMModel():w(nullptr) {
     n = 0;
     m = 0;
     d = 0;
@@ -36,18 +36,14 @@ public:
   virtual ~FFMModel() {
     if(w != nullptr)
       delete [] w;
-    if(v != nullptr)
-      delete [] v;
   }
 
   inline void Init() {
     CHECK(n != 0 || m != 0 || d != 0) << "the ffm parameter must be inital.";
-    ffm_model_size = n * m * d;
+    ffm_model_size = n + n * m * d;
 
     if(w == nullptr)
-      w = new float[n];
-    if(v == nullptr)
-      v = new float[ffm_model_size];
+      w = new float[ffm_model_size];
   }
 
   inline void SetParam(const char *name,const char *val)
@@ -78,8 +74,7 @@ public:
   size_t d; // dim of the fm 
   size_t ffm_model_size;
 
-  float *w; // lr parameter
-  float *v; // ffm parameter
+  float *w; // ffm model parameter
   
 };
 
