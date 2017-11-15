@@ -31,6 +31,7 @@ public:
     l2_ffm_reg = 0.1f;
     task = "train";
     model_out = "ffm_model.dat";
+    model_in = "NULL";
   }
 
   virtual ~FTRL() 
@@ -78,6 +79,10 @@ public:
       l2_ffm_reg = static_cast<float>(atof(val));
     if(!strcmp(name,"task"))
       task = val;
+    if(!strcmp(name,"model_out"))
+      model_out = val;
+    if(!strcmp(name,"model_in"))
+      model_in = val;
 
     ffm.SetParam(name,val);
   }
@@ -282,12 +287,14 @@ public:
 
   virtual void Run()
   {
-    this->Init();
-    if(task == "train")
+    if(task == "train") {    
+      this->Init();
       this->TaskTrain();
-    else if(task == "pred")
+    }else if(task == "pred") {
+      LOG(INFO) << "Load FFM Model now...";
+      this->LoadModel(model_in.c_str());
       this->TaskPred();
-    else
+    }else
       LOG(FATAL) << "error task!";
   }
 
@@ -318,6 +325,7 @@ private:
 
   std::string task;
   std::string model_out;
+  std::string model_in;
 
   std::vector<Metric::pair_t> pair_vec;
 }; //end class

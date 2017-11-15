@@ -14,7 +14,7 @@ SRC = $(wildcard $(DIR_SRC)/*.cc)
 OBJ = $(patsubst %.cc,$(DIR_SRC)/%.o,$(notdir $(SRC)))
 OBJ += $(DEPS_PATH)/lib/libdmlc.a
 
-target = ./bin/train
+target = ./bin/adpa_ftrl
 
 $(target) : $(OBJ)
 	$(CXX) $(OBJ) -o $@ $(LDFLAGS)
