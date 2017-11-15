@@ -1,4 +1,4 @@
-Ftrl for Logistic Regression
+Ftrl for Factorization Machines and Field-aware Factorization Machines
 ====
 * input format: LibSVM
 * run command:./bin/adpa_ffm dtrain dtest param=val
