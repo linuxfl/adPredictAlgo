@@ -152,9 +152,9 @@ class Ftrl
       }
       CHECK(num_feature > 0) << "num_feature get error!please check your data!";
       
-      LOG(INFO) << "num feature is : " << num_feature << " alpha : "
-                << alpha << " beta :" << beta << " l1_reg: " << l1_reg
-                << " l2_reg : " << l2_reg;
+      LOG(INFO) << "num_feature=" << num_feature << ",alpha="
+                << alpha << ",beta=" << beta << ",l1_reg=" << l1_reg
+                << ",l2_reg=" << l2_reg << ",base_score=" << base_score;
 
       //init weight and ftrl paramter
       w = new float[num_feature];

@@ -32,6 +32,7 @@ public:
     task = "train";
     model_out = "ffm_model.dat";
     model_in = "NULL";
+    num_epochs = 1;
   }
 
   virtual ~FTRL() 
@@ -51,8 +52,8 @@ public:
     ffm.Init();
     size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
     double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
-    LOG(INFO) << "num_fea=" << ffm.param.n << ",ffm_dim=" << ffm.param.d 
-              << ",num_field="<< ffm.param.m << ",use_memory=" << memory_use << "GB";
+    LOG(INFO) << "num_fea=" << ffm.param.n << ",ffm_dim=" << ffm.param.d << ",num_field="<< ffm.param.m 
+                            << "num_epochs=" << num_epochs << ",use_memory=" << memory_use << " GB";
    
     z = new float[ffm.param.n];
     n = new float[ffm.param.n];
@@ -83,6 +84,8 @@ public:
       model_out = val;
     if(!strcmp(name,"model_in"))
       model_in = val;
+    if(!strcmp(name,"num_epochs"))
+      num_epochs = static_cast<unsigned>(atoi(val));
 
     ffm.SetParam(name,val);
   }
@@ -94,15 +97,17 @@ public:
 
     std::string line;
     Instance ins;
-    int cnt = 0;
-    while(getline(train_stream,line)) {
-      ins.clear();
-      ParseLine(line,ins);
-      UpdateOneIter(ins);
-      cnt++;
-      if(cnt % 100000 == 0)
-      {  
-        TaskPred();
+    for(unsigned i = 0;i < num_epochs;++i) {
+      int cnt = 0;
+      while(getline(train_stream,line)) {
+        ins.clear();
+        ParseLine(line,ins);
+        UpdateOneIter(ins);
+        cnt++;
+        if(cnt % 100000 == 0)
+        {  
+          TaskPred();
+        }
       }
     }
     TaskPred();
@@ -326,6 +331,8 @@ private:
   std::string task;
   std::string model_out;
   std::string model_in;
+
+  unsigned num_epochs;
 
   std::vector<Metric::pair_t> pair_vec;
 }; //end class
