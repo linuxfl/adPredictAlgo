@@ -11,10 +11,11 @@
 #include "ffm.h"
 #include "str_util.h"
 #include "metric.h"
+#include "elapse.h"
 
 namespace adPredictAlgo {
-class FTRL {
 
+class FTRL {
 public:
   FTRL(char *dtrain,dmlc::RowBlockIter<unsigned> *dtest)
     :dtrain(dtrain),dtest(dtest),n(nullptr),
@@ -53,7 +54,7 @@ public:
     size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
     double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
     LOG(INFO) << "num_fea=" << ffm.param.n << ",ffm_dim=" << ffm.param.d << ",num_field="<< ffm.param.m 
-                            << "num_epochs=" << num_epochs << ",use_memory=" << memory_use << " GB";
+              << ",num_epochs=" << num_epochs << ",use_memory=" << memory_use << " GB";
    
     z = new float[ffm.param.n];
     n = new float[ffm.param.n];
@@ -92,13 +93,18 @@ public:
 
   inline void TaskTrain() 
   {
-    std::ifstream train_stream(dtrain);
-    CHECK(train_stream.fail() == false) << "open the train file error!";
-
+    Timer t;
+    t.Start();
     std::string line;
     Instance ins;
     for(unsigned i = 0;i < num_epochs;++i) {
+
+      std::ifstream train_stream(dtrain);
+      CHECK(train_stream.fail() == false) << "open the train file error!";
+
       int cnt = 0;
+      LOG(INFO) << "Epoch " << i << ":";
+      
       while(getline(train_stream,line)) {
         ins.clear();
         ParseLine(line,ins);
@@ -111,6 +117,8 @@ public:
       }
     }
     TaskPred();
+    t.Stop();
+    LOG(INFO) << "Elapsed time:" << t.ElapsedSeconds() << " sec.";
     DumpModel(model_out.c_str());
   }
 

@@ -26,4 +26,4 @@ $(DIR_SRC)/%.o : $(DIR_SRC)/%.cc
 
 clean:
 	$(RM) $(DIR_SRC)/*.o
-	$(RM) ./bin/train
+	$(RM) ./bin/adpa_ffm
