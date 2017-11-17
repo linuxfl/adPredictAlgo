@@ -46,12 +46,11 @@ class Ftrl
       beta = 1.0f;
       base_score = 0.5f;
 
-      num_feature = 0;
+      num_fea = 0;
       model_in = "NULL";
       model_out = "lr_model.dat";
       memory_in = "batch";
       pred_out = "pred.txt";
-      num_feature = 0;
     }
 
      Ftrl(char *traind,dmlc::RowBlockIter<unsigned> *dtest):
@@ -64,13 +63,12 @@ class Ftrl
       beta = 1.0f;
       base_score = 0.5f;
 
-      num_feature = 0;
+      num_fea = 0;
       model_in = "NULL";
       model_out = "lr_model.dat";
       memory_in = "stream";
       pred_out = "pred.txt";
       dtrain = nullptr;
-      num_feature = 0;
     }
 
     virtual ~Ftrl() {
@@ -79,7 +77,7 @@ class Ftrl
         delete dtrain;
       delete dtest;
       
-      if(w != nullptr) delete []  w;
+      if(w != nullptr) delete [] w;
       if(n != nullptr) delete [] n;
       if(z != nullptr) delete [] z;
     }
@@ -103,8 +101,8 @@ class Ftrl
         alpha = static_cast<float>(atof(val));
       if (!strcmp(name,"beta")) 
         beta = static_cast<float>(atof(val));
-      if (!strcmp(name,"num_feature")) 
-        num_feature = static_cast<size_t>(atoi(val));
+      if (!strcmp(name,"num_fea")) 
+        num_fea = static_cast<size_t>(atoi(val));
       if (!strcmp(name,"base_score")) 
         base_score = static_cast<float>(atof(val));
       if (!strcmp(name,"pred_out"))
@@ -118,7 +116,7 @@ class Ftrl
       {
         unsigned numfea = 0;
         this->LoadModel(model_in.c_str(),&numfea);
-        CHECK(numfea == num_feature) 
+        CHECK(numfea == num_fea) 
           << "old model feature number must be equal input data";
       }
       if (memory_in == "stream") {
@@ -137,29 +135,29 @@ class Ftrl
           dtrain->NumCol();    
       size_t test_numdim  = dtest->NumCol();
       size_t numdim = std::max(train_numdim,test_numdim);
-      if (num_feature != 0) {
-        CHECK(numdim <= num_feature) 
+      if (num_fea != 0) {
+        CHECK(numdim <= num_fea) 
           << "given feature num must be greater or equal than feauture num in data";
       }else{
         for(size_t i = numdim;;i++)
         {
           if(i % 100 == 0)
           {
-            num_feature = i;
+            num_fea = i;
             break;
           }
         }
       }
-      CHECK(num_feature > 0) << "num_feature get error!please check your data!";
+      CHECK(num_fea > 0) << "num_fea get error!please check your data!";
       
-      LOG(INFO) << "num_feature=" << num_feature << ",alpha="
+      LOG(INFO) << "num_fea=" << num_fea << ",alpha="
                 << alpha << ",beta=" << beta << ",l1_reg=" << l1_reg
                 << ",l2_reg=" << l2_reg << ",base_score=" << base_score;
 
       //init weight and ftrl paramter
-      w = new float[num_feature];
-      n = new float[num_feature];
-      z = new float[num_feature];
+      w = new float[num_fea];
+      n = new float[num_fea];
+      z = new float[num_fea];
 
       InitBaseScore();
     }
@@ -292,7 +290,7 @@ class Ftrl
       ofs << l1_reg << std::endl;
       ofs << l2_reg << std::endl;
 
-      for(size_t i = 0;i < num_feature;i++) {
+      for(size_t i = 0;i < num_fea;i++) {
         ofs << n[i] << " "
             << z[i] << " " 
             << w[i] << " "
@@ -357,7 +355,7 @@ class Ftrl
 
   private:
     float *w,*n,*z;
-    size_t num_feature;
+    size_t num_fea;
     std::vector<Metric::pair_t> pair_vec;
 
     std::string model_in;
