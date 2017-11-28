@@ -124,7 +124,7 @@ public:
 
     // 23:123444 v.index[j]:v.get_value(j) 
   inline float PredIns(const dmlc::Row<unsigned> &v) {
-    float inner = 0.0f;
+    float inner = ffm.w[0];
     for(unsigned i = 0;i < v.length;++i)
     {
       uint32_t fea_index = v.get_value(i);
@@ -188,6 +188,15 @@ public:
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
     float sum = 0.0f;
+    //w_0 update
+    if(std::fabs(z[0]) < l1_reg) {
+      ffm.w[0] = 0.0;
+    }else{
+      ffm.w[0] = (Sign(z[0]) * l1_reg - z[0]) / \
+                ((beta + std::sqrt(n[0])) / alpha + l2_reg);
+    }
+    sum += ffm.w[0];    
+    //w_i update
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
@@ -200,6 +209,7 @@ public:
       sum += ffm.w[fea_index];
     }
 
+    //v_i_f update
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
@@ -240,10 +250,14 @@ public:
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
 
+    float sigma = (std::sqrt(n[0] + grad * grad) - std::sqrt(n[0])) / alpha;
+    z[0] += grad - sigma * ffm.w[0];
+    n[0] += grad * grad;
+
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
-      float theta = (std::sqrt(n[fea_index] + grad * grad) - sqrt(n[fea_index])) / alpha;
+      float theta = (std::sqrt(n[fea_index] + grad * grad) - std::sqrt(n[fea_index])) / alpha;
       z[fea_index] += grad - theta * ffm.w[fea_index];
       n[fea_index] += grad * grad;
     }
