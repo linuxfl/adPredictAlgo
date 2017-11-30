@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include "dmlc/data.h"
+#include "dmlc/io.h"
 #include "learner.h"
 
 namespace adPredictAlgo {
@@ -37,11 +38,11 @@ struct ADMMParam : public dmlc::Parameter<ADMMParam>
             .set_range(0,100);
         DMLC_DECLARE_FIELD(l1_reg)
             .set_default(0.0f);
-        DMLC_DECLARE_FILED(l2_reg)
+        DMLC_DECLARE_FIELD(l2_reg)
             .set_default(0.0f);
-        DMLC_DECLARE_FILED(learner)
+        DMLC_DECLARE_FIELD(learner)
             .set_default("NULL");
-        DMLC_DECLARE_FILED(num_procs)
+        DMLC_DECLARE_FIELD(num_procs)
             .set_default(0);
     }
 };
@@ -72,7 +73,7 @@ class ADMM {
 
     //init
     inline void Init() {
-        CHECK(param.num_fea != 0 || leaner != "NULL") << "num_fea and name_leaner must be set!";
+        CHECK(param.num_fea != 0 || param.learner != "NULL") << "num_fea and name_leaner must be set!";
         //init paramter 
         primal = new float[param.num_fea];
         dual = new float[param.num_fea];
@@ -84,12 +85,12 @@ class ADMM {
     void Configure(
         std::vector<std::pair<std::string,std::string> > cfg)
     {
-        param.InitAllowUnknow(cfg);
-        for(const &kv : cfg)
+        param.InitAllowUnknown(cfg);
+        for(const auto &kv : cfg)
             cfg_[kv.first] = kv.second;
         
         //learner
-        learner = Learner::Create(param.learner);
+        learner = Learner::Create(param.learner.c_str());
         if(learner == nullptr)
             LOG(FATAL) << "learner inital error!";
         learner->Configure(cfg);
@@ -125,7 +126,7 @@ class ADMM {
 
     //soft threshold
     void SoftThreshold(float t_,float *z) {
-        for(uint32_t i = 0;i < numFeatures;i++){
+        for(uint32_t i = 0;i < num_fea;i++){
             if(z[i] > t_){
                 z[i] -= t_;
             }else if(z[i] <= t_ && z[i] >= -t_){
@@ -142,7 +143,7 @@ class ADMM {
         while(++iter < admm_max_iter) {
             this->UpdatePrimal();
             this->UpdateDual();
-            this->UpdateUpdateConsensus();
+            this->UpdateConsensus();
             if(IsStop())
                 break;
         }
@@ -163,7 +164,7 @@ class ADMM {
     }
 
     bool IsStop() {
-
+			return false;
     }
 
   private:
@@ -173,14 +174,15 @@ class ADMM {
 
     uint32_t num_fea;
     uint32_t num_procs;
-    int max_iter;
+    int admm_max_iter;
+
+		float rho;
 
     float l1_reg;
     float l2_reg;
 
     //optimator
-    Learner *leaner;
-    LogisticReg lr_model;
+    Learner *learner;
     
     ADMMParam param;
     std::map<std::string,std::string> cfg_;

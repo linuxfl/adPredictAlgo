@@ -5,7 +5,6 @@
 #include <string>
 #include <ctime>
 #include <vector>
-#include <pair>
 
 #include <dmlc/data.h>
 #include <dmlc/io.h>
@@ -21,7 +20,7 @@ enum Task {
 
 struct AppParam : public dmlc::Parameter<AppParam> {
     //the task name
-    std::string task;
+    int task;
     //whether silent
     int slient;
     //all the configurations
@@ -30,36 +29,37 @@ struct AppParam : public dmlc::Parameter<AppParam> {
     DMLC_DECLARE_PARAMETER(AppParam){
         DMLC_DECLARE_FIELD(task).set_default(kTrain)
             .add_enum("train",kTrain)
-            .add_enum("pred",kPred)
+            .add_enum("pred",kPredict);
         DMLC_DECLARE_FIELD(slient).set_default(1).set_range(0,2);
     }
     inline void Configure(std::vector<std::pair<std::string,std::string> > cfg){
         this->cfg = cfg;
-        this->InitAllowUnknow(cfg);
+        this->InitAllowUnknown(cfg);
     }
 
 };
 
-DMLC_REGITER_PARAMETER(AppParam);
+DMLC_REGISTER_PARAMETER(AppParam);
 
 void TaskTrain(const AppParam &param)
 {
-    ADMM admm(param.cfg);
-    admm.Configure();
+    ADMM admm;
+    admm.Configure(param.cfg);
     admm.Init();
     admm.TaskTrain();
 }
 
 void TaskPred(const AppParam &param)
 {
-    ADMM admm(param.cfg);
+    ADMM admm;
+		admm.Configure(param.cfg);
     admm.TaskPred();
 }
 
 int RunTask(int argc,char **argv)
 {
 	if(argc < 2){
-	    LOG(FATAL) << "Usage:train conf_file" << endl;
+	    LOG(FATAL) << "Usage:train conf_file";
 		return 0;
 	}
 	
@@ -73,11 +73,11 @@ int RunTask(int argc,char **argv)
     adPredictAlgo::ConfigIterator itr(argv[1]);
 
     // store the rank and the number of processes
-    cfg.push_back(std::make_pair(std::string("rank"),std::string(myid)));
-    cfg.push_back(std::make_pair(std::string("num_procs"),std::string(numprocs)));
+    cfg.push_back(std::make_pair(std::string("rank"),std::string(std::to_string(myid))));
+    cfg.push_back(std::make_pair(std::string("num_procs"),std::string(std::to_string(numprocs))));
 
     // store conf file parameter
-    while(itr.next()) {
+    while(itr.Next()) {
         cfg.push_back(std::make_pair(std::string(itr.name()),std::string(itr.val())));
     }
 
@@ -95,7 +95,7 @@ int RunTask(int argc,char **argv)
 
     switch(param.task) {
         case kTrain: TaskTrain(param); break;
-        case kPredict: TaskPredict(param);break;
+        case kPredict: TaskPred(param);break;
     }
     
     MPI_Finalize();
@@ -106,5 +106,5 @@ int RunTask(int argc,char **argv)
 
 int main(int argc,char **argv)
 {
-    return RunTask(argc,argv);
+    return adPredictAlgo::RunTask(argc,argv);
 }
