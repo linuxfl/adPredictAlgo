@@ -6,4 +6,5 @@
 class Learner {
     public:
         virtual ~Learner();
+
 };
