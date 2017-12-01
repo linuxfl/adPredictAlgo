@@ -52,12 +52,14 @@ public:
   {
     ffm.Init();
     size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
+    ffm_model_size = ffm.GetModelSize();
+
     double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
     LOG(INFO) << "num_fea=" << ffm.param.n << ",ffm_dim=" << ffm.param.d << ",num_field="<< ffm.param.m 
               << ",num_epochs=" << num_epochs << ",use_memory=" << memory_use << " GB";
    
-    z = new float[ffm.param.n];
-    n = new float[ffm.param.n];
+    z = new float[ffm.param.n + 1];
+    n = new float[ffm.param.n + 1];
     z_ffm = new float[ftrl_param_size];
     n_ffm = new float[ftrl_param_size];
   }
@@ -124,7 +126,7 @@ public:
 
     // 23:123444 v.index[j]:v.get_value(j) 
   inline float PredIns(const dmlc::Row<unsigned> &v) {
-    float inner = ffm.w[0];
+    float inner = ffm.w[ffm_model_size - 1];
     for(unsigned i = 0;i < v.length;++i)
     {
       uint32_t fea_index = v.get_value(i);
@@ -189,13 +191,13 @@ public:
     std::vector<ffm_node> fea_vec = ins.fea_vec;
     float sum = 0.0f;
     //w_0 update
-    if(std::fabs(z[0]) < l1_reg) {
-      ffm.w[0] = 0.0;
+    if(std::fabs(z[ffm.param.n]) < l1_reg) {
+      ffm.w[ffm_model_size - 1] = 0.0;
     }else{
-      ffm.w[0] = (Sign(z[0]) * l1_reg - z[0]) / \
-                ((beta + std::sqrt(n[0])) / alpha + l2_reg);
+      ffm.w[ffm_model_size - 1] = (Sign(z[ffm.param.n]) * l1_reg - z[ffm.param.n]) / \
+                ((beta + std::sqrt(n[ffm.param.n])) / alpha + l2_reg);
     }
-    sum += ffm.w[0];    
+    sum += ffm.w[ffm_model_size - 1];    
     //w_i update
     for(size_t index = 0;index < ins_len;++index)
     {
@@ -242,7 +244,7 @@ public:
 
   inline float Sigmoid(float inx)
   {
-    return 1.0f / (1.0f + std::exp(-inx));
+    return 1.0f / (1.0f + std::exp(-std::max(std::min(inx,15.0f),-15.0f)));
   }
 
   virtual void AuxUpdate(const Instance &ins,float grad)
@@ -250,9 +252,9 @@ public:
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
 
-    float sigma = (std::sqrt(n[0] + grad * grad) - std::sqrt(n[0])) / alpha;
-    z[0] += grad - sigma * ffm.w[0];
-    n[0] += grad * grad;
+    float sigma = (std::sqrt(n[ffm.param.n] + grad * grad) - std::sqrt(n[ffm.param.n])) / alpha;
+    z[ffm.param.n] += grad - sigma * ffm.w[ffm_model_size - 1];
+    n[ffm.param.n] += grad * grad;
 
     for(size_t index = 0;index < ins_len;++index)
     {
@@ -355,6 +357,7 @@ private:
   std::string model_in;
 
   unsigned num_epochs;
+  size_t ffm_model_size;
 
   std::vector<Metric::pair_t> pair_vec;
 }; //end class

@@ -47,7 +47,7 @@ public:
 
   inline void Init() {
     CHECK(param.n != 0 || param.m != 0 || param.d != 0) << "the ffm parameter must be inital.";
-    ffm_model_size = param.n + param.n * param.m * param.d;
+    ffm_model_size = param.n + param.n * param.m * param.d + 1;
 
     if(w == nullptr)
       w = new float[ffm_model_size];
