@@ -15,6 +15,7 @@ struct ADMMParam : public dmlc::Parameter<ADMMParam>
     float rho;
     //the max iter of admm
     int admm_max_iter;
+    int num_procs;
 
     float l1_reg;
     float l2_reg;
@@ -40,6 +41,8 @@ struct ADMMParam : public dmlc::Parameter<ADMMParam>
             .set_default(0.0f);
         DMLC_DECLARE_FILED(learner)
             .set_default("NULL");
+        DMLC_DECLARE_FILED(num_procs)
+            .set_default(0);
     }
 };
 
@@ -76,11 +79,6 @@ class ADMM {
         cons = new float[param.num_fea];
         cons_pre = new float[param.num_fea];
         w = new float[param.num_fea];
-
-        //learner
-        learner = Learner::Create(param.learner);
-        if(learner == nullptr)
-            LOG(FATAL) << "learner inital error!";
     }
     
     void Configure(
@@ -89,29 +87,65 @@ class ADMM {
         param.InitAllowUnknow(cfg);
         for(const &kv : cfg)
             cfg_[kv.first] = kv.second;
+        
+        //learner
+        learner = Learner::Create(param.learner);
+        if(learner == nullptr)
+            LOG(FATAL) << "learner inital error!";
+        learner->Configure(cfg);
     }
 
     void UpdatePrimal()
     {
-
+        learner->Train(primal,dual,cons,rho,dtrain);
     }
 
     //update dual parameter y
     void UpdateDual() {
-
+        for(uint32_t i = 0;i < num_fea;++i) {
+            dual[i] += rho * (dual[i] - cons[i]);
+        }
     }
     //update z
     void UpdateConsensus() {
+        float s = 1.0/(rho * num_procs + 2 * l2_reg);
+        float t = s * l1_reg;
 
+        for(uint32_t i = 0;i < num_fea;i++)
+        {
+            w[i] = s * (primal[i] + dual[i]);
+            cons_pre[i] = cons[i];
+        }
+    
+        MPI_Allreduce(w, cons,  num_fea, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+    
+        if(l1_reg != 0.0f)
+            SoftThreshold(t,cons);
     }
-    //soft threshold
-    void SoftThreshold() {
 
+    //soft threshold
+    void SoftThreshold(float t_,float *z) {
+        for(uint32_t i = 0;i < numFeatures;i++){
+            if(z[i] > t_){
+                z[i] -= t_;
+            }else if(z[i] <= t_ && z[i] >= -t_){
+                z[i] = 0.0;
+            }else{
+                z[i] += t_;
+            }
+        }
     }
 
     //train task
     void TaskTrain() {
-
+        int iter = 0;
+        while(++iter < admm_max_iter) {
+            this->UpdatePrimal();
+            this->UpdateDual();
+            this->UpdateUpdateConsensus();
+            if(IsStop())
+                break;
+        }
     }
 
     //predict task
@@ -133,6 +167,7 @@ class ADMM {
     }
 
   private:
+    dmlc::RowBlockIter<unsigned> *dtrain;
     float *primal,*dual,*cons;
     float *w,*cons_pre;
 
