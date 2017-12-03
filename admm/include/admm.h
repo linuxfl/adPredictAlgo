@@ -210,8 +210,8 @@ class ADMM {
    }
 
    bool IsStop() {
-     double send[3] = {0};
-     double recv[3] = {0};
+     float send[3] = {0};
+     float recv[3] = {0};
   
      for(uint32_t i = 0;i < num_fea;i++){
        send[0] += (primal[i] - cons[i]) * (primal[i] - cons[i]);
@@ -221,24 +221,24 @@ class ADMM {
 
      MPI_Allreduce(send,recv,3,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD);
 
-     double prires  = sqrt(recv[0]);  /* sqrt(sum ||r_i||_2^2) */
-     double nxstack = sqrt(recv[1]);  /* sqrt(sum ||x_i||_2^2) */
-     double nystack = sqrt(recv[2]);  /* sqrt(sum ||y_i||_2^2) */
-
-     double zdiff = 0.0;
-     double z_squrednorm = 0.0; 
+     float prires  = sqrt(recv[0]);  /* sqrt(sum ||r_i||_2^2) */
+     float nxstack = sqrt(recv[1]);  /* sqrt(sum ||x_i||_2^2) */
+     float nystack = sqrt(recv[2]);  /* sqrt(sum ||y_i||_2^2) */
+     
+     float zdiff = 0.0;
+     float z_squrednorm = 0.0; 
 
      for(uint32_t i = 0;i < num_fea;i++){
        zdiff += (cons[i] - cons_pre[i]) * (cons[i] - cons_pre[i]);
        z_squrednorm += cons[i] * cons[i];
      }
 
-     double z_norm = sqrt(num_procs) * sqrt(z_squrednorm);
-     double dualres = sqrt(num_procs) * rho * sqrt(zdiff); /* ||s^k||_2^2 = N rho^2 ||z - zprev||_2^2 */
+     float z_norm = sqrt(num_procs) * sqrt(z_squrednorm);
+     float dualres = sqrt(num_procs) * rho * sqrt(zdiff); /* ||s^k||_2^2 = N rho^2 ||z - zprev||_2^2 */
      //double vmax = nxstack > z_norm?nxstack:z_norm;
 
-     double eps_pri  = sqrt(num_procs * num_data)*ABSTOL + RELTOL * fmax(nxstack,z_norm);
-     double eps_dual = sqrt(num_procs * num_data)*ABSTOL + RELTOL * nystack;
+     float eps_pri  = sqrt(num_procs * num_data)*ABSTOL + RELTOL * fmax(nxstack,z_norm);
+     float eps_dual = sqrt(num_procs * num_data)*ABSTOL + RELTOL * nystack;
 
      if(rank == 0)
        LOG(INFO) << "prires=" << prires << ",eps_pri=" << eps_pri 
