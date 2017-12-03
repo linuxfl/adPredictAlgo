@@ -16,7 +16,11 @@ class LBFGSSolver : public Learner {
     {
       std::cout << "lbfgs configure" << std::endl;
     }
-
+    
+    float PredIns(const dmlc::Row<unsigned> &v,
+                  const float *w){
+      return 0.0;
+    }
     void Train(float *primal,
            float *dual,
            float *cons,

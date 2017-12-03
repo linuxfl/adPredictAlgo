@@ -2,9 +2,12 @@
 #define _ADPREDICT_ADMM_H_
 
 #include <iostream>
+#include <fstream>
+
 #include "dmlc/data.h"
 #include "dmlc/io.h"
 #include "learner.h"
+#include "metric.h"
 
 namespace adPredictAlgo {
 
@@ -81,10 +84,16 @@ class ADMM {
       if(cfg_.count("l2_reg"))
         l2_reg = static_cast<float>(atof(cfg_["l2_reg"].c_str()));
 
+      if(cfg_.count("rho"))
+        rho = static_cast<float>(atof(cfg_["rho"].c_str()));
+
       if(cfg_.count("train_data"))
         train_data = cfg_["train_data"];
+      
+      if(cfg_.count("num_procs"))
+        num_procs = static_cast<int>(atoi(cfg_["num_procs"].c_str()));
 
-			CHECK(train_data != "NULL") << "train data must be set.";
+	  CHECK(train_data != "NULL") << "train data must be set.";
 
       train_data += std::to_string(rank);
       dtrain = dmlc::RowBlockIter<unsigned>::Create(
@@ -100,10 +109,10 @@ class ADMM {
         num_data += batch.size;
       }
       if (rank == 0)
-       LOG(INFO) << "num_fea=" << num_fea << ",num_data=" << num_data
+        LOG(INFO) << "num_fea=" << num_fea << ",num_data=" << num_data
                  << ",l1_reg=" << l1_reg << ",l2_reg=" << l2_reg 
                  << ",learner=" << learner << ",admm_max_iter=" << admm_max_iter
-                 << ",train_data=" << train_data;
+                 << ",rho=" << rho << ",train_data=" << train_data;
       
       //optimizer
       optimizer = Learner::Create(learner.c_str());
@@ -165,20 +174,40 @@ class ADMM {
          break;
        iter++;
      }
+     SaveModel();
    }
 
    //predict task
    void TaskPred() {
-
+     pair_vec.clear();
+      dtrain->BeforeFirst();
+      while(dtrain->Next()) {
+        const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
+        for(size_t i = 0;i < batch.size;i++) {
+          dmlc::Row<unsigned> v = batch[i];
+          float score = optimizer->PredIns(v,primal);
+          Metric::pair_t p(score,v.get_label());
+          pair_vec.push_back(p);
+        }   
+      }   
+      LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
+                << ",COPC=" << Metric::CalCOPC(pair_vec);
    }
 
    //save model
    void SaveModel() {
-
+     std::ofstream os("model.dat");
+     for(uint32_t i = 0;i < num_fea;i++)
+       os << cons[i] << std::endl;
+    os.close();
    }
-   //dump model
-   void DumpModel() {
-
+   
+   void LoadModel() {
+       std::cout << "11111" << std::endl;
+    std::ifstream is("model.dat");
+    for(uint32_t i = 0;i < num_fea;i++)
+      is >> primal[i];
+    is.close();
    }
 
    bool IsStop() {
@@ -213,7 +242,9 @@ class ADMM {
      double eps_dual = sqrt(num_procs * num_data)*ABSTOL + RELTOL * nystack;
 
      if(rank == 0)
-       printf("%10.4f %10.4f %10.4f %10.4f\n", prires, eps_pri, dualres, eps_dual);
+       LOG(INFO) << "prires=" << prires << ",eps_pri=" << eps_pri 
+                 << ",dualres=" << dualres << ",eps_dual=" << eps_dual;
+       //printf("%10.4f %10.4f %10.4f %10.4f\n", prires, eps_pri, dualres, eps_dual);
 
      if(prires <= eps_pri && dualres <= eps_dual) {
        return true;
@@ -245,7 +276,7 @@ class ADMM {
    //optimizer 
    std::string learner;
    Learner *optimizer;
-
+   std::vector<Metric::pair_t> pair_vec;
    //configure
    std::map<std::string,std::string> cfg_;
 };// class ADMM

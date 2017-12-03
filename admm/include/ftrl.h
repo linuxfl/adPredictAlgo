@@ -32,7 +32,7 @@ class FTRL : public Learner {
         alpha = static_cast<float>(atof(cfg_["alpha"].c_str()));
       if(cfg_.count("beta"))
         beta = static_cast<float>(atof(cfg_["beta"].c_str()));
- 
+      
       this->Init();
     }
 
@@ -77,7 +77,6 @@ class FTRL : public Learner {
       }
     }
 
-   private:
     inline void Init()
     {
       CHECK(num_fea != 0) << "num_fea must be init.";
@@ -85,7 +84,7 @@ class FTRL : public Learner {
       n = new float[num_fea];
     }
 
-    inline float PredIns(const dmlc::Row<unsigned> &v,
+    float PredIns(const dmlc::Row<unsigned> &v,
                          const float *w) {
       float inner = 0.0f;
       for(unsigned i = 0;i < v.length;i++) {
@@ -98,6 +97,7 @@ class FTRL : public Learner {
       return 1.0f / (1.0f + std::exp(-inx));
     }
 
+  private:
     float *z,*n;
     float alpha,beta;
     uint32_t num_fea;

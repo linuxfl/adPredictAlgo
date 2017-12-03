@@ -52,6 +52,7 @@ void TaskPred(const AppParam &param)
 {
   ADMM admm;
   admm.Configure(param.cfg);
+  admm.Init();
   admm.TaskPred();
 }
 

@@ -15,9 +15,12 @@ class Learner {
 
         //train
         virtual void Train(float * primal,
-													 float *dual,
+						   float *dual,
                            float *cons,
-													 float rho,dmlc::RowBlockIter<unsigned> *dtrain) = 0;
+						   float rho,dmlc::RowBlockIter<unsigned> *dtrain) = 0;
+        //pred instance
+        virtual float PredIns(const dmlc::Row<unsigned> &v,
+                              const float *w) = 0;
 
         static Learner *Create(const char *name);
 };
