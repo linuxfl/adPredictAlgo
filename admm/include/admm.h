@@ -203,7 +203,6 @@ class ADMM {
    }
    
    void LoadModel() {
-       std::cout << "11111" << std::endl;
     std::ifstream is("model.dat");
     for(uint32_t i = 0;i < num_fea;i++)
       is >> primal[i];

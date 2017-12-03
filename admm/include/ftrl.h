@@ -12,6 +12,7 @@ class FTRL : public Learner {
       num_fea = 0;
       alpha = 0.1f;
       beta = 1.0f;
+      epochs = 1;
     }
 
     virtual ~FTRL() {
@@ -32,7 +33,9 @@ class FTRL : public Learner {
         alpha = static_cast<float>(atof(cfg_["alpha"].c_str()));
       if(cfg_.count("beta"))
         beta = static_cast<float>(atof(cfg_["beta"].c_str()));
-      
+      if(cfg_.count("epochs"))
+        epochs = static_cast<int>(atoi(cfg_["epochs"].c_str()));
+
       this->Init();
     }
 
@@ -42,6 +45,7 @@ class FTRL : public Learner {
            float rho,
            dmlc::RowBlockIter<unsigned> *dtrain)
     {
+      for(int iter = 0; iter < epochs;iter++){
       dtrain->BeforeFirst();
       while(dtrain->Next())  {
         const  dmlc::RowBlock<unsigned> &batch = dtrain->Value();
@@ -76,6 +80,7 @@ class FTRL : public Learner {
         }
       }
     }
+    }
 
     inline void Init()
     {
@@ -101,6 +106,7 @@ class FTRL : public Learner {
     float *z,*n;
     float alpha,beta;
     uint32_t num_fea;
+    int epochs;
 
     std::map<std::string,std::string> cfg_;
 };
