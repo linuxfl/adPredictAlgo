@@ -46,7 +46,8 @@ class ADMM {
 
    //init
    inline void Init() {
-     CHECK(num_fea != 0 || learner != "NULL") << "num_fea and name_leaner must be set!";
+     CHECK(num_fea != 0 || learner != "NULL" || train_data != "NULL") 
+           << "num_fea and name_leaner must be set!";
       //init paramter
      primal = new float[num_fea];
      dual = new float[num_fea];
@@ -80,19 +81,31 @@ class ADMM {
       if(cfg_.count("l2_reg"))
         l2_reg = static_cast<float>(atof(cfg_["l2_reg"].c_str()));
 
-			if(cfg_.count("train_data"))
-		    train_data = cfg_["train_data"];
+      if(cfg_.count("train_data"))
+        train_data = cfg_["train_data"];
 
-      //train data init
-			dtrain = nullptr;
+			CHECK(train_data != "NULL") << "train data must be set.";
 
-			if (rank == 0)
-       LOG(INFO) << "num_fea=" << num_fea << ",num_data=" << num_fea 
+      train_data += std::to_string(rank);
+      dtrain = dmlc::RowBlockIter<unsigned>::Create(
+                 train_data.c_str(),
+                 0,
+                 1,
+                 "libsvm"
+                );
+
+      dtrain->BeforeFirst();
+      while(dtrain->Next())  {
+        const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
+        num_data += batch.size;
+      }
+      if (rank == 0)
+       LOG(INFO) << "num_fea=" << num_fea << ",num_data=" << num_data
                  << ",l1_reg=" << l1_reg << ",l2_reg=" << l2_reg 
                  << ",learner=" << learner << ",admm_max_iter=" << admm_max_iter
                  << ",train_data=" << train_data;
       
-			//optimizer
+      //optimizer
       optimizer = Learner::Create(learner.c_str());
       if(optimizer == nullptr)
         LOG(FATAL) << "learner inital error!";
@@ -170,27 +183,27 @@ class ADMM {
 
    bool IsStop() {
      double send[3] = {0};
-	   double recv[3] = {0};
-
-	   for(uint32_t i = 0;i < num_fea;i++){
-		   send[0] += (primal[i] - cons[i]) * (primal[i] - cons[i]);
-		   send[1] += (primal[i]) * (primal[i]);
-		   send[2] += (dual[i]) * (dual[i]);
+     double recv[3] = {0};
+  
+     for(uint32_t i = 0;i < num_fea;i++){
+       send[0] += (primal[i] - cons[i]) * (primal[i] - cons[i]);
+       send[1] += (primal[i]) * (primal[i]);
+       send[2] += (dual[i]) * (dual[i]);
      }
 
      MPI_Allreduce(send,recv,3,MPI_FLOAT,MPI_SUM,MPI_COMM_WORLD);
 
      double prires  = sqrt(recv[0]);  /* sqrt(sum ||r_i||_2^2) */
-	   double nxstack = sqrt(recv[1]);  /* sqrt(sum ||x_i||_2^2) */
-	   double nystack = sqrt(recv[2]);  /* sqrt(sum ||y_i||_2^2) */
+     double nxstack = sqrt(recv[1]);  /* sqrt(sum ||x_i||_2^2) */
+     double nystack = sqrt(recv[2]);  /* sqrt(sum ||y_i||_2^2) */
 
-	   double zdiff = 0.0;
-	   double z_squrednorm = 0.0; 
-	   
+     double zdiff = 0.0;
+     double z_squrednorm = 0.0; 
+
      for(uint32_t i = 0;i < num_fea;i++){
-		   zdiff += (cons[i] - cons_pre[i]) * (cons[i] - cons_pre[i]);
-		   z_squrednorm += cons[i] * cons[i];
-	   }
+       zdiff += (cons[i] - cons_pre[i]) * (cons[i] - cons_pre[i]);
+       z_squrednorm += cons[i] * cons[i];
+     }
 
      double z_norm = sqrt(num_procs) * sqrt(z_squrednorm);
      double dualres = sqrt(num_procs) * rho * sqrt(zdiff); /* ||s^k||_2^2 = N rho^2 ||z - zprev||_2^2 */
@@ -199,13 +212,13 @@ class ADMM {
      double eps_pri  = sqrt(num_procs * num_data)*ABSTOL + RELTOL * fmax(nxstack,z_norm);
      double eps_dual = sqrt(num_procs * num_data)*ABSTOL + RELTOL * nystack;
 
-		 if(rank == 0)
-		   printf("%10.4f %10.4f %10.4f %10.4f\n", prires, eps_pri, dualres, eps_dual);
+     if(rank == 0)
+       printf("%10.4f %10.4f %10.4f %10.4f\n", prires, eps_pri, dualres, eps_dual);
 
      if(prires <= eps_pri && dualres <= eps_dual) {
        return true;
-	   }
-	   
+     }
+
      return false;
    }
 
@@ -219,7 +232,7 @@ class ADMM {
    float *w,*cons_pre;
 
    uint32_t num_fea;
-	 uint32_t num_data;
+   uint32_t num_data;
    int admm_max_iter;
 
    float rho;

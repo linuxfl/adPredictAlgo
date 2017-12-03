@@ -11,7 +11,7 @@ class Learner {
     public:
         // configure
         virtual void Configure(
-                std::vector<std::pair<std::string,std::string> >) = 0;
+                const std::vector<std::pair<std::string,std::string> > &) = 0;
 
         //train
         virtual void Train(float * primal,

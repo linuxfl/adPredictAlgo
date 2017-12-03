@@ -12,7 +12,7 @@ class LBFGSSolver : public Learner {
       
     }
 
-    void Configure(std::vector<std::pair<std::string,std::string> > cfg) 
+    void Configure(const std::vector<std::pair<std::string,std::string> > &cfg) 
     {
       std::cout << "lbfgs configure" << std::endl;
     }
