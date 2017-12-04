@@ -11,8 +11,8 @@
 
 namespace adPredictAlgo {
 
-const double RELTOL = 1e-2;
-const double ABSTOL = 1e-4;
+const double RELTOL = 1e-3;
+const double ABSTOL = 1e-5;
 
 class ADMM {
   public:
@@ -170,7 +170,7 @@ class ADMM {
        this->UpdatePrimal();
        this->UpdateDual();
        this->UpdateConsensus();
-       if(IsStop())
+       if(IsStop(iter))
          break;
        iter++;
      }
@@ -209,7 +209,7 @@ class ADMM {
     is.close();
    }
 
-   bool IsStop() {
+   bool IsStop(int iter) {
      float send[3] = {0};
      float recv[3] = {0};
   
@@ -240,11 +240,14 @@ class ADMM {
      float eps_pri  = sqrt(num_procs * num_data)*ABSTOL + RELTOL * fmax(nxstack,z_norm);
      float eps_dual = sqrt(num_procs * num_data)*ABSTOL + RELTOL * nystack;
 
-     if(rank == 0)
-       LOG(INFO) << "prires=" << prires << ",eps_pri=" << eps_pri 
-                 << ",dualres=" << dualres << ",eps_dual=" << eps_dual;
+     if(rank == 0){
+       char buf[500];
+       snprintf(buf,500,"iter=%2d,prires=%.5f,eps_pri=%.5f,dualres=%.5f,eps_dual=%.5f",iter,prires,eps_pri,dualres,eps_dual);
+       LOG(INFO) << buf;
+       //LOG(INFO) << "iter=" << iter << ",prires=" << prires << ",eps_pri=" << eps_pri
+       //          << ",dualres=" << dualres << ",eps_dual=" << eps_dual;
        //printf("%10.4f %10.4f %10.4f %10.4f\n", prires, eps_pri, dualres, eps_dual);
-
+     }
      if(prires <= eps_pri && dualres <= eps_dual) {
        return true;
      }
