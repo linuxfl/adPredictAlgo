@@ -11,8 +11,8 @@
 
 namespace adPredictAlgo {
 
-const double RELTOL = 1e-3;
-const double ABSTOL = 1e-5;
+const double RELTOL = 1e-2;
+const double ABSTOL = 1e-4;
 
 class ADMM {
   public:
@@ -135,12 +135,12 @@ class ADMM {
 
    //update z
    void UpdateConsensus() {
-     float s = 1.0/(rho * num_procs + 2 * l2_reg);
+     float s = 1.0f / (rho * num_procs + 2 * l2_reg);
      float t = s * l1_reg;
 
      for(uint32_t i = 0;i < num_fea;i++)
      {
-       w[i] = s * (primal[i] + dual[i]);
+       w[i] = s * (rho * primal[i] + dual[i]);
        cons_pre[i] = cons[i];
      }
  
@@ -168,8 +168,8 @@ class ADMM {
      int iter = 0;
      while(iter < admm_max_iter) {
        this->UpdatePrimal();
-       this->UpdateDual();
        this->UpdateConsensus();
+       this->UpdateDual();
        if(IsStop(iter))
          break;
        iter++;
