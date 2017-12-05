@@ -76,7 +76,7 @@ public:
     CHECK(fi->Read(&header[0],4) != 0) << "invalid model.";
     if(header == "binf") {
       fi->Read(&param,sizeof(ModelParam));
-      ffm_model_size = param.n * param.m * param.d + param.n;
+      ffm_model_size = param.n * param.m * param.d + param.n + 1;
       if(w == nullptr) {
         w = new float[ffm_model_size];
         fi->Read(w,sizeof(float) * ffm_model_size);
