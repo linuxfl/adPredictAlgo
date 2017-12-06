@@ -29,9 +29,9 @@ class LBFGSSolver{
       max_linesearch_iter = 20;
       num_fea = 0;
 
-        task = "train";
-        model_out = "lr_model.dat";
-        model_in = "NULL";
+      task = "train";
+      model_out = "lr_model.dat";
+      model_in = "NULL";
     }
     
     virtual ~LBFGSSolver() {
@@ -42,7 +42,7 @@ class LBFGSSolver{
     inline void Init() {
       num_fea = std::max(num_fea,dtrain->NumCol());
       linear.Init(num_fea);
- 
+
       CHECK(num_fea > 0) << "please init num fea!";
       
       grad = Eigen::VectorXf::Zero(num_fea);
@@ -50,14 +50,11 @@ class LBFGSSolver{
 
       z = Eigen::VectorXf::Zero(num_fea);
       alpha.resize(memory_size,0.0f);
-      for(size_t i = 0 ;i < memory_size;i++) {
-        Eigen::VectorXf yelem(num_fea);
-        Eigen::VectorXf selem(num_fea);
-        
-        y.push_back(yelem);
-        s.push_back(selem);
-      }
 
+      Eigen::VectorXf yelem(num_fea);
+      Eigen::VectorXf selem(num_fea);
+      y.resize(memory_size,yelem);
+      s.resize(memory_size,selem);
       //init gradient
       linear.CalGrad(grad,linear.old_weight,dtrain);
       //init l1 gradient;
@@ -67,7 +64,9 @@ class LBFGSSolver{
       init_objval = this->Eval(dtrain,linear.old_weight);
       old_objval = init_objval;
       LOG(INFO) << "L-BFGS solver starts, num_fea=" << num_fea << ",init_objval=" << init_objval
-                << ",memory_size=" << memory_size << ",l1_reg="<<l1_reg << ",l2_reg=" << linear.l2_reg;
+                << ",memory_size=" << memory_size << ",l1_reg="<<l1_reg << ",l2_reg=" << linear.l2_reg
+                << ",lbfgs_stop_tol=" << lbfgs_stop_tol << ",max_lbfgs_iter=" << max_lbfgs_iter << ",max_linesearch_iter="
+                << max_linesearch_iter;
     }
     
     inline void SetParam(const char *name,const char *val) {
@@ -122,7 +121,9 @@ class LBFGSSolver{
       return l1_grad.dot(-z);
     }
 
-    virtual void FixL1Sign(Eigen::VectorXf &p,Eigen::VectorXf &l1_grad) {
+    virtual void FixL1Sign(Eigen::VectorXf &p,
+                           Eigen::VectorXf &l1_grad)
+    {
       if(l1_reg != 0.0f){
         for(size_t i = 0; i < num_fea;i++) {
           if(p[i] * l1_grad[i] <= 0.0f) {
@@ -133,7 +134,8 @@ class LBFGSSolver{
     }
 
     virtual void SetDirL1Sign(Eigen::VectorXf &out_dir,
-                    const Eigen::VectorXf &grad,const Eigen::VectorXf &weight) {
+                              const Eigen::VectorXf &grad,
+                              const Eigen::VectorXf &weight) {
       if(l1_reg == 0.0f){
         out_dir = grad;
       }
@@ -158,7 +160,8 @@ class LBFGSSolver{
     }
     
     virtual void FixWeightSign(Eigen::VectorXf &new_weight,
-                            const Eigen::VectorXf &old_weight,const Eigen::VectorXf &l1_grad) {
+                               const Eigen::VectorXf &old_weight,
+                               const Eigen::VectorXf &l1_grad) {
       if(l1_reg != 0.0f) {
         for(size_t i = 0;i < num_fea;i++) {
           if(old_weight[i] == 0.0f){
@@ -173,7 +176,8 @@ class LBFGSSolver{
     }
 
     virtual int BacktrackLineSearch(Eigen::VectorXf &new_weight,
-                                const Eigen::VectorXf &old_weight,float dot_dir_l1grad,int iter) 
+                                    const Eigen::VectorXf &old_weight,
+                                    float dot_dir_l1grad,int iter)
     {
       int k = 0;
       float alpha_ = 1.0;
@@ -223,8 +227,8 @@ class LBFGSSolver{
       UpdateHistInfo(iter);
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval) 
         return true;  
-      LOG(INFO) << "[" << iter <<"]" << " L-BFGS: linesearch finishes in "<< k 
-                    << " rounds, new_objval=" << new_objval << ", improvment=" << old_objval - new_objval;
+      LOG(INFO) << "[" << iter <<"]" << " L-BFGS: linesearch finishes in "<< k << " rounds, new_objval="
+                << new_objval << ", improvment=" << old_objval - new_objval << ", grad_norm=" << grad.norm();
       old_objval = new_objval;
       return stop;
     }
@@ -255,8 +259,8 @@ class LBFGSSolver{
         
       is.close();
       
-      LOG(INFO) << "test AUC is : " << Metric::CalAUC(pair_vec) 
-                << ", test COPC is : " << Metric::CalCOPC(pair_vec);
+      LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
+                << ", Test COPC=" << Metric::CalCOPC(pair_vec);
     }
     
     virtual void SaveModel() {

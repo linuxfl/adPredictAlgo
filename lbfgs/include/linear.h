@@ -22,7 +22,7 @@ struct LinearModel {
   }
 
   inline void Init(size_t _num_fea) {
-      num_fea = _num_fea;
+    num_fea = _num_fea;
     old_weight = Eigen::VectorXf::Zero(num_fea);
     new_weight = Eigen::VectorXf::Zero(num_fea);
   }
@@ -51,7 +51,7 @@ struct LinearModel {
   }
 
   inline double InnerProduct(const Eigen::VectorXf &w,
-                              const dmlc::Row<unsigned> &v) const {
+                             const dmlc::Row<unsigned> &v) const {
     double sum = 0.0;
     for(unsigned i = 0;i < v.length;i++) {
       if(v.index[i] < num_fea) {
@@ -62,17 +62,18 @@ struct LinearModel {
   }
 
   inline double Pred(const Eigen::VectorXf &w,
-                            const dmlc::Row<unsigned> &v) const {
+                     const dmlc::Row<unsigned> &v) const {
     return Sigmoid(InnerProduct(w,v));
   }
 
   inline double PredToGrad(const Eigen::VectorXf &w,
-                            const dmlc::Row<unsigned> &v) const {
+                           const dmlc::Row<unsigned> &v) const {
     return Sigmoid(InnerProduct(w,v)) - v.get_label();
   }
 
-  virtual void CalGrad(Eigen::VectorXf &out_grad,const Eigen::VectorXf &weight,
-        dmlc::RowBlockIter<unsigned> *dtrain) const {
+  virtual void CalGrad(Eigen::VectorXf &out_grad,
+                       const Eigen::VectorXf &weight,
+                       dmlc::RowBlockIter<unsigned> *dtrain) const {
     std::vector<double> grad;
     out_grad.setZero();
     dtrain->BeforeFirst();
@@ -98,7 +99,7 @@ struct LinearModel {
   }
   
   virtual double Eval(dmlc::RowBlockIter<unsigned> *dtrain,
-                  const Eigen::VectorXf &weight) {
+                      const Eigen::VectorXf &weight) {
     double sum_val = 0.0f;
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
