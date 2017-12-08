@@ -114,10 +114,7 @@ class Ftrl
       this->Init();
       if(model_in != "NULL")
       {
-        unsigned numfea = 0;
-        this->LoadModel(model_in.c_str(),&numfea);
-        CHECK(numfea == num_fea) 
-          << "old model feature number must be equal input data";
+        this->LoadModel(model_in.c_str());
       }
       if (memory_in == "stream") {
         this->TrainOnStream();
@@ -130,26 +127,10 @@ class Ftrl
 
     inline void Init()
     {
-      size_t train_numdim = 0;
-      if(dtrain != nullptr)
-          dtrain->NumCol();    
-      size_t test_numdim  = dtest->NumCol();
-      size_t numdim = std::max(train_numdim,test_numdim);
-      if (num_fea != 0) {
-        CHECK(numdim <= num_fea) 
-          << "given feature num must be greater or equal than feauture num in data";
-      }else{
-        for(size_t i = numdim;;i++)
-        {
-          if(i % 100 == 0)
-          {
-            num_fea = i;
-            break;
-          }
-        }
-      }
       CHECK(num_fea > 0) << "num_fea get error!please check your data!";
-      
+      if(dtest->NumCol() > num_fea)
+        LOG(INFO) << "the number feature of test data is bigger then the parameter!";
+
       LOG(INFO) << "num_fea=" << num_fea << ",alpha="
                 << alpha << ",beta=" << beta << ",l1_reg=" << l1_reg
                 << ",l2_reg=" << l2_reg << ",base_score=" << base_score;
@@ -264,7 +245,7 @@ class Ftrl
       PredOut();
     }
 
-    virtual void LoadModel(const char *model_in,unsigned *numfea) {
+    virtual void LoadModel(const char *model_in) {
       LOG(INFO) << "Load old model...";
       std::ifstream ifs(model_in);
       CHECK(ifs.fail() == false) << "open model_in error!";
@@ -279,7 +260,6 @@ class Ftrl
         ifs >> n[i] >> z[i] >> w[i];
         i++;
       }
-      *numfea = i - 1;
       ifs.close();
     }
 
