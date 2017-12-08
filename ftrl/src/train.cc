@@ -1,7 +1,28 @@
+#include <string>
 #include "../include/ftrl.h"
+
+std::string train_help()
+{
+  return std::string(
+  "usage: adpa_ftrl training_set_file test_set_file param=val\n"
+  "\n"
+  "param:\n"
+    "*num_fea: the number of the feature (default 0)\n"
+    "l1_reg: l1 regularization co-efficient (default 0.)\n"
+    "l2_reg: l2 regularization co-efficient (default 0.1)\n"
+    "alpha: ftrl parameter,please refer in relative paper (default 0.01)\n"
+    "beta: ftrl parameter,please refer in relative paper (default 1)\n"
+    "model_in: input model file,when model_in is not \"NULL\",launch online model\n"
+    "model_out: output model file\n");
+}
 
 int main(int argc,char **argv)
 {
+  if(!strcmp(argv[1],"-h") || !strcmp(argv[1],"-help")) {
+    std::cout << train_help() << std::endl;
+    return 0;
+  }
+
   if(argc < 4)
   {
     LOG(FATAL) << "Usage:train_data test_data memory_in param=val";
