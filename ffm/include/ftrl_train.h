@@ -7,6 +7,8 @@
 #include <vector>
 #include <cmath>
 #include <cstring>
+#include <fstream>
+#include <random>
 
 #include "ffm.h"
 #include "str_util.h"
@@ -54,14 +56,22 @@ public:
     size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
     ffm_model_size = ffm.GetModelSize();
 
-    double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(float) * 1.0 / 1024 / 1024 / 1024;
-    LOG(INFO) << "num_fea=" << ffm.param.n << ",ffm_dim=" << ffm.param.d << ",num_field="<< ffm.param.m 
-              << ",num_epochs=" << num_epochs << ",use_memory=" << memory_use << " GB";
-   
-    z = new float[ffm.param.n + 1];
-    n = new float[ffm.param.n + 1];
-    z_ffm = new float[ftrl_param_size];
-    n_ffm = new float[ftrl_param_size];
+    double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(double) * 1.0 / 1024 / 1024 / 1024;
+    LOG(INFO) << "num_fea=" << ffm.param.n << ", ffm_dim=" << ffm.param.d << ", num_field="<< ffm.param.m 
+              << ", num_epochs=" << num_epochs << ", use_memory=" << memory_use << " GB";
+    
+    LOG(INFO) << "alpha=" << alpha << ", beta=" << beta << ", alpha_ffm=" << alpha_ffm << ", beta_ffm=" << beta_ffm
+              << ", l1_reg=" << l1_reg << ", l2_reg=" << l2_reg << ", l1_ffm_reg=" << l1_ffm_reg << ", l2_ffm_reg=" << l2_ffm_reg;
+
+    z = new double[ffm.param.n + 1];
+    n = new double[ffm.param.n + 1];
+    z_ffm = new double[ftrl_param_size];
+    n_ffm = new double[ftrl_param_size];
+
+    p_gauss_distribution = new std::normal_distribution<double>(0.0,0.01);
+    for(size_t i = 0;i < ftrl_param_size;++i){
+      z_ffm[i] = (*p_gauss_distribution)(generator);
+    }
   }
 
   inline void SetParam(const char *name,const char *val) {
@@ -105,7 +115,6 @@ public:
       CHECK(train_stream.fail() == false) << "open the train file error!";
 
       int cnt = 0;
-      LOG(INFO) << "Epoch " << i << ":";
       
       while(getline(train_stream,line)) {
         ins.clear();
@@ -125,8 +134,8 @@ public:
   }
 
     // 23:123444 v.index[j]:v.get_value(j) 
-  inline float PredIns(const dmlc::Row<unsigned> &v) {
-    float inner = ffm.w[ffm_model_size - 1];
+  inline double PredIns(const dmlc::Row<unsigned> &v) {
+    double inner = ffm.w[ffm_model_size - 1];
     for(unsigned i = 0;i < v.length;++i)
     {
       uint32_t fea_index = v.get_value(i);
@@ -154,14 +163,13 @@ public:
         const dmlc::RowBlock<unsigned> &batch = dtest->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
-            float score = PredIns(v);
+            double score = PredIns(v);
             Metric::pair_t p(score,v.get_label());
             pair_vec.push_back(p);
         }   
       }   
-      LOG(INFO) << "test AUC=" << Metric::CalAUC(pair_vec) 
-                << ",COPC=" << Metric::CalCOPC(pair_vec)
-                << ",Logloss=" << Metric::CalLogLoss(pair_vec);
+      LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
+                << ",COPC=" << Metric::CalCOPC(pair_vec);
   }   
 
   virtual void ParseLine(const std::string &line,Instance &ins)
@@ -185,11 +193,11 @@ public:
     }
   }
 
-  virtual float PredictRaw(const Instance &ins)
+  virtual double PredictRaw(const Instance &ins)
   {
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
-    float sum = 0.0f;
+    double sum = 0.0f;
     //w_0 update
     if(std::fabs(z[ffm.param.n]) < l1_reg) {
       ffm.w[ffm_model_size - 1] = 0.0;
@@ -233,37 +241,38 @@ public:
     return sum;
   }
   
-  virtual float Predict(float inx) {
+  virtual double Predict(double inx) {
     return Sigmoid(inx);
   }
 
-  inline int Sign(float inx)
+  inline int Sign(double inx)
   {
     return inx > 0?1:0;
   }
 
-  inline float Sigmoid(float inx)
+  inline double Sigmoid(double inx)
   {
-    return 1.0f / (1.0f + std::exp(-std::max(std::min(inx,15.0f),-15.0f)));
+    CHECK(!std::isnan(inx)) << "nan occurs";
+    return 1. / (1. + std::exp(-std::max(std::min(inx,31.),-31.)));
   }
 
-  virtual void AuxUpdate(const Instance &ins,float grad)
+  virtual void AuxUpdate(const Instance &ins,double grad)
   {
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
 
-    float sigma = (std::sqrt(n[ffm.param.n] + grad * grad) - std::sqrt(n[ffm.param.n])) / alpha;
+    double sigma = (std::sqrt(n[ffm.param.n] + grad * grad) - std::sqrt(n[ffm.param.n])) / alpha;
     z[ffm.param.n] += grad - sigma * ffm.w[ffm_model_size - 1];
     n[ffm.param.n] += grad * grad;
 
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
-      float theta = (std::sqrt(n[fea_index] + grad * grad) - std::sqrt(n[fea_index])) / alpha;
+      double theta = (std::sqrt(n[fea_index] + grad * grad) - std::sqrt(n[fea_index])) / alpha;
       z[fea_index] += grad - theta * ffm.w[fea_index];
       n[fea_index] += grad * grad;
     }
-    std::map<uint32_t,float> sum_ffm;
+    std::map<uint32_t,double> sum_ffm;
     for(size_t i = 0;i < ins_len;++i)
     {
       uint32_t fea_x = fea_vec[i].fea_index;
@@ -297,8 +306,8 @@ public:
         uint32_t real_fea_index = 
                   (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
         uint32_t map_fea_index = real_fea_index + ffm.param.n;
-        float g_ffm = grad * sum_ffm[map_fea_index];
-        float theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index]));
+        double g_ffm = grad * sum_ffm[map_fea_index];
+        double theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index]));
         z_ffm[real_fea_index] += g_ffm - theta * ffm.w[map_fea_index];
         n_ffm[real_fea_index] += g_ffm * g_ffm;
       }
@@ -308,9 +317,9 @@ public:
 
   virtual void UpdateOneIter(const Instance &ins) 
   {
-    float p = Predict(PredictRaw(ins));
+    double p = Predict(PredictRaw(ins));
     int label = ins.label;
-    float grad = p - label;
+    double grad = p - label;
     AuxUpdate(ins,grad);
   }
 
@@ -328,23 +337,31 @@ public:
   }
 
   virtual void DumpModel(const char *model_out) {
-    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
-    ffm.DumpModel(fo);
-    delete fo;
+//    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
+//    ffm.DumpModel(fo);
+//    delete fo;
+    std::ofstream os(model_out);
+    CHECK(os.fail() == false) << "open model out error!";
+
+    ffm.DumpModel(os);
+    os.close();
   }
 
   virtual void LoadModel(const char *model_in) {
     dmlc::Stream *fi = dmlc::Stream::Create(model_in,"r");
+//    std::ifstream is(model_in);
+//    CHECK(is.fail() == false) << "open model in error!";
     ffm.LoadModel(fi);
     delete fi;
+//    is.close();
   }
 private:
   char *dtrain;
   dmlc::RowBlockIter<unsigned> *dtest;
 
   FFMModel ffm;
-  float *n,*z;
-  float *n_ffm,*z_ffm;
+  double *n,*z;
+  double *n_ffm,*z_ffm;
 
   float alpha,beta;
   float alpha_ffm,beta_ffm;
@@ -360,6 +377,8 @@ private:
   size_t ffm_model_size;
 
   std::vector<Metric::pair_t> pair_vec;
+  std::default_random_engine generator;
+  std::normal_distribution<double> *p_gauss_distribution;
 }; //end class
 
 } // end namespace

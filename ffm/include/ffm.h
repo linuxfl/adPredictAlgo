@@ -4,6 +4,7 @@
 #include <vector>
 #include <dmlc/data.h>
 #include <dmlc/io.h>
+#include <fstream>
 
 namespace adPredictAlgo {
 //for sparse value
@@ -50,7 +51,7 @@ public:
     ffm_model_size = param.n + param.n * param.m * param.d + 1;
 
     if(w == nullptr)
-      w = new float[ffm_model_size];
+      w = new double[ffm_model_size];
   }
 
   inline void SetParam(const char *name,const char *val)
@@ -67,7 +68,7 @@ public:
     fo->Write("binf",4);
     fo->Write(&param,sizeof(ModelParam));
     if(w != nullptr)
-      fo->Write(w,sizeof(float) * ffm_model_size);
+      fo->Write(w,sizeof(double) * ffm_model_size);
   }
 
   virtual void LoadModel(dmlc::Stream *fi) {
@@ -78,11 +79,28 @@ public:
       fi->Read(&param,sizeof(ModelParam));
       ffm_model_size = param.n * param.m * param.d + param.n + 1;
       if(w == nullptr) {
-        w = new float[ffm_model_size];
-        fi->Read(w,sizeof(float) * ffm_model_size);
+        w = new double[ffm_model_size];
+        fi->Read(w,sizeof(double) * ffm_model_size);
       }
     }
 
+  }
+  
+  virtual void DumpModel(std::ofstream &os) {
+    os << param.n << " " << param.m << " " << param.d << std::endl;
+    for(unsigned int i = 0;i < ffm_model_size;++i)
+    {
+      os << w[i] << std::endl;
+    }
+  }
+
+  virtual void LoadModel(std::ifstream &is) {
+    is >> param.n >> param.m >> param.d;
+    ffm_model_size = param.n * param.m * param.d + param.n + 1;
+
+    w = new double[ffm_model_size];
+    for(unsigned int i = 0;i < ffm_model_size;++i)
+        is >> w[i];
   }
 
   size_t GetModelSize() const {
@@ -90,7 +108,7 @@ public:
   }
 
   ModelParam param;
-  float *w; // ffm model parameter
+  double *w; // ffm model parameter
 private:
   size_t ffm_model_size;
 };
