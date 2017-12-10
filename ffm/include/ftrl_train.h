@@ -362,14 +362,14 @@ public:
   }
 
   virtual void DumpModel(const char *model_out) {
-    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
-    ffm.DumpModel(fo);
-    delete fo;
-//    std::ofstream os(model_out);
-//    CHECK(os.fail() == false) << "open model out error!";
+//    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
+//    ffm.DumpModel(fo);
+//    delete fo;
+    std::ofstream os(model_out);
+    CHECK(os.fail() == false) << "open model out error!";
 
-//    ffm.DumpModel(os);
-//    os.close();
+    ffm.DumpModel(os);
+    os.close();
   }
 
   virtual void LoadModel(const char *model_in) {
