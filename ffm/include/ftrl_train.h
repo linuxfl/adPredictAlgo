@@ -103,7 +103,7 @@ public:
     ffm.SetParam(name,val);
   }
 
-  inline void TaskTrain() 
+  inline void TaskTrain()
   {
     Timer t;
     t.Start();
@@ -115,7 +115,7 @@ public:
       CHECK(train_stream.fail() == false) << "open the train file error!";
 
       int cnt = 0;
-      
+
       while(getline(train_stream,line)) {
         ins.clear();
         ParseLine(line,ins);
@@ -144,12 +144,22 @@ public:
 
     for(size_t i = 0;i < v.length;++i)
     {
-      uint32_t fea_index = v.get_value(i);
-      uint32_t field_index = v.index[i];
-      for(size_t k = 0;k < ffm.param.d;++k) {
-        uint32_t map_fea_index = 
-                  ffm.param.n + (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
-        inner += ffm.w[map_fea_index];
+      uint32_t fea_x = v.get_value(i);
+      uint32_t field_x = v.index[i];
+      uint32_t real_fea_x =
+                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+
+      for(size_t j = i+1;j < v.length;++j) {
+        uint32_t fea_y = v.get_value(j);
+        uint32_t field_y = v.index[j];
+        uint32_t real_fea_y =
+                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+
+        if(i!=j){
+          for(size_t k = 0;k < ffm.param.d;++k) {
+            inner += ffm.w[real_fea_x + k] * ffm.w[real_fea_y + k];
+          }
+        }
       }
     }
     return Sigmoid(inner);
@@ -166,11 +176,11 @@ public:
             double score = PredIns(v);
             Metric::pair_t p(score,v.get_label());
             pair_vec.push_back(p);
-        }   
-      }   
+        }
+      }
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
                 << ",COPC=" << Metric::CalCOPC(pair_vec);
-  }   
+  }
 
   virtual void ParseLine(const std::string &line,Instance &ins)
   {
@@ -199,33 +209,28 @@ public:
     std::vector<ffm_node> fea_vec = ins.fea_vec;
     double sum = 0.0f;
     //w_0 update
-    if(std::fabs(z[ffm.param.n]) < l1_reg) {
-      ffm.w[ffm_model_size - 1] = 0.0;
-    }else{
-      ffm.w[ffm_model_size - 1] = (Sign(z[ffm.param.n]) * l1_reg - z[ffm.param.n]) / \
-                ((beta + std::sqrt(n[ffm.param.n])) / alpha + l2_reg);
-    }
-    sum += ffm.w[ffm_model_size - 1];    
+    ffm.w[ffm_model_size - 1] = ( - z[ffm.param.n]) / \
+                ((beta + std::sqrt(n[ffm.param.n])) / alpha);
+    sum += ffm.w[ffm_model_size - 1];
     //w_i update
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
       if(std::fabs(z[fea_index]) < l1_reg) {
-        ffm.w[fea_index] = 0.0f;
+        ffm.w[fea_index] = 0.0;
       }else{
         ffm.w[fea_index] = (Sign(z[fea_index]) * l1_reg - z[fea_index]) / \
                       ((beta + std::sqrt(n[fea_index])) / alpha + l2_reg);
       }
       sum += ffm.w[fea_index];
     }
-
     //v_i_f update
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
       uint32_t field_index = fea_vec[index].field_index;
       for(size_t k = 0;k < ffm.param.d;++k) {
-        uint32_t real_fea_index = 
+        uint32_t real_fea_index =
                   (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
         uint32_t map_fea_index = real_fea_index + ffm.param.n;
 
@@ -235,12 +240,32 @@ public:
           ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
                           ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
         }
-        sum += ffm.w[map_fea_index];
+      }
+    }
+
+    for(size_t i = 0;i < ins_len;++i)
+    {
+      uint32_t fea_x = fea_vec[i].fea_index;
+      uint32_t field_x = fea_vec[i].field_index;
+      uint32_t real_fea_x =
+                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+
+      for(size_t j = i+1;j < ins_len;++j) {
+        uint32_t fea_y = fea_vec[j].fea_index;
+        uint32_t field_y = fea_vec[j].field_index;
+        uint32_t real_fea_y =
+                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+
+        if(i != j){
+          for(size_t k = 0;k < ffm.param.d;++k) {
+            sum += ffm.w[real_fea_x + k] * ffm.w[real_fea_y + k];
+          }
+        }
       }
     }
     return sum;
   }
-  
+
   virtual double Predict(double inx) {
     return Sigmoid(inx);
   }
@@ -280,7 +305,7 @@ public:
       uint32_t real_fea_x = 
                   ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
 
-      for(size_t j = 0; j < ins_len;++j)
+      for(size_t j = i+1; j < ins_len;++j)
       {
         uint32_t fea_y = fea_vec[j].fea_index;
         uint32_t field_y = fea_vec[j].field_index;
@@ -307,7 +332,7 @@ public:
                   (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
         uint32_t map_fea_index = real_fea_index + ffm.param.n;
         double g_ffm = grad * sum_ffm[map_fea_index];
-        double theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index]));
+        double theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index])) / alpha_ffm;
         z_ffm[real_fea_index] += g_ffm - theta * ffm.w[map_fea_index];
         n_ffm[real_fea_index] += g_ffm * g_ffm;
       }
@@ -337,14 +362,14 @@ public:
   }
 
   virtual void DumpModel(const char *model_out) {
-//    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
-//    ffm.DumpModel(fo);
-//    delete fo;
-    std::ofstream os(model_out);
-    CHECK(os.fail() == false) << "open model out error!";
+    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
+    ffm.DumpModel(fo);
+    delete fo;
+//    std::ofstream os(model_out);
+//    CHECK(os.fail() == false) << "open model out error!";
 
-    ffm.DumpModel(os);
-    os.close();
+//    ffm.DumpModel(os);
+//    os.close();
   }
 
   virtual void LoadModel(const char *model_in) {
