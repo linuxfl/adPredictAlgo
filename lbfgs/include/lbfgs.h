@@ -228,7 +228,7 @@ class LBFGSSolver{
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval) 
         return true;  
       LOG(INFO) << "[" << iter <<"]" << " L-BFGS: linesearch finishes in "<< k << " rounds, new_objval="
-                << new_objval << ", improvment=" << old_objval - new_objval << ", grad_norm=" << grad.norm();
+                << new_objval << ", improvment=" << old_objval - new_objval;
       old_objval = new_objval;
       return stop;
     }

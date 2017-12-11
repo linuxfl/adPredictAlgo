@@ -1,0 +1,15 @@
+*[o]
+
+hostfile
+
+data/*
+
+ffm_model.dat
+
+lr_model.dat
+
+model.dat
+
+pred.txt
+
+*/bin/

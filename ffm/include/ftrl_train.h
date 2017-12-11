@@ -56,19 +56,19 @@ public:
     size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
     ffm_model_size = ffm.GetModelSize();
 
-    double memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(double) * 1.0 / 1024 / 1024 / 1024;
+    ValueType memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(double) * 1.0 / 1024 / 1024 / 1024;
     LOG(INFO) << "num_fea=" << ffm.param.n << ", ffm_dim=" << ffm.param.d << ", num_field="<< ffm.param.m 
               << ", num_epochs=" << num_epochs << ", use_memory=" << memory_use << " GB";
     
     LOG(INFO) << "alpha=" << alpha << ", beta=" << beta << ", alpha_ffm=" << alpha_ffm << ", beta_ffm=" << beta_ffm
               << ", l1_reg=" << l1_reg << ", l2_reg=" << l2_reg << ", l1_ffm_reg=" << l1_ffm_reg << ", l2_ffm_reg=" << l2_ffm_reg;
 
-    z = new double[ffm.param.n + 1];
-    n = new double[ffm.param.n + 1];
-    z_ffm = new double[ftrl_param_size];
-    n_ffm = new double[ftrl_param_size];
+    z = new ValueType[ffm.param.n + 1];
+    n = new ValueType[ffm.param.n + 1];
+    z_ffm = new ValueType[ftrl_param_size];
+    n_ffm = new ValueType[ftrl_param_size];
 
-    p_gauss_distribution = new std::normal_distribution<double>(0.0,0.01);
+    p_gauss_distribution = new std::normal_distribution<ValueType>(0.0,0.01);
     for(size_t i = 0;i < ftrl_param_size;++i){
       z_ffm[i] = (*p_gauss_distribution)(generator);
     }
@@ -134,8 +134,8 @@ public:
   }
 
     // 23:123444 v.index[j]:v.get_value(j) 
-  inline double PredIns(const dmlc::Row<unsigned> &v) {
-    double inner = ffm.w[ffm_model_size - 1];
+  inline ValueType PredIns(const dmlc::Row<unsigned> &v) {
+    ValueType inner = ffm.w[ffm_model_size - 1];
     for(unsigned i = 0;i < v.length;++i)
     {
       uint32_t fea_index = v.get_value(i);
@@ -146,14 +146,14 @@ public:
     {
       uint32_t fea_x = v.get_value(i);
       uint32_t field_x = v.index[i];
-      uint32_t real_fea_x =
-                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
 
       for(size_t j = i+1;j < v.length;++j) {
         uint32_t fea_y = v.get_value(j);
         uint32_t field_y = v.index[j];
         uint32_t real_fea_y =
-                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+        uint32_t real_fea_x =
+                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
 
         if(i!=j){
           for(size_t k = 0;k < ffm.param.d;++k) {
@@ -173,7 +173,7 @@ public:
         const dmlc::RowBlock<unsigned> &batch = dtest->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
-            double score = PredIns(v);
+            ValueType score = PredIns(v);
             Metric::pair_t p(score,v.get_label());
             pair_vec.push_back(p);
         }
@@ -203,11 +203,11 @@ public:
     }
   }
 
-  virtual double PredictRaw(const Instance &ins)
+  virtual ValueType PredictRaw(const Instance &ins)
   {
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
-    double sum = 0.0f;
+    ValueType sum = 0.0f;
     //w_0 update
     ffm.w[ffm_model_size - 1] = ( - z[ffm.param.n]) / \
                 ((beta + std::sqrt(n[ffm.param.n])) / alpha);
@@ -247,14 +247,15 @@ public:
     {
       uint32_t fea_x = fea_vec[i].fea_index;
       uint32_t field_x = fea_vec[i].field_index;
-      uint32_t real_fea_x =
-                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
 
       for(size_t j = i+1;j < ins_len;++j) {
         uint32_t fea_y = fea_vec[j].fea_index;
         uint32_t field_y = fea_vec[j].field_index;
+
         uint32_t real_fea_y =
-                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+        uint32_t real_fea_x =
+                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
 
         if(i != j){
           for(size_t k = 0;k < ffm.param.d;++k) {
@@ -266,51 +267,53 @@ public:
     return sum;
   }
 
-  virtual double Predict(double inx) {
+  virtual ValueType Predict(ValueType inx) {
     return Sigmoid(inx);
   }
 
-  inline int Sign(double inx)
+  inline int Sign(ValueType inx)
   {
     return inx > 0?1:0;
   }
 
-  inline double Sigmoid(double inx)
+  inline ValueType Sigmoid(ValueType inx)
   {
     CHECK(!std::isnan(inx)) << "nan occurs";
-    return 1. / (1. + std::exp(-std::max(std::min(inx,31.),-31.)));
+    ValueType tuc_val = 31;
+    return 1. / (1. + std::exp(-std::max(std::min(inx,tuc_val),-tuc_val)));
   }
 
-  virtual void AuxUpdate(const Instance &ins,double grad)
+  virtual void AuxUpdate(const Instance &ins,ValueType grad)
   {
     size_t ins_len = ins.fea_vec.size();
     std::vector<ffm_node> fea_vec = ins.fea_vec;
 
-    double sigma = (std::sqrt(n[ffm.param.n] + grad * grad) - std::sqrt(n[ffm.param.n])) / alpha;
+    ValueType sigma = (std::sqrt(n[ffm.param.n] + grad * grad) - std::sqrt(n[ffm.param.n])) / alpha;
     z[ffm.param.n] += grad - sigma * ffm.w[ffm_model_size - 1];
     n[ffm.param.n] += grad * grad;
 
     for(size_t index = 0;index < ins_len;++index)
     {
       uint32_t fea_index = fea_vec[index].fea_index;
-      double theta = (std::sqrt(n[fea_index] + grad * grad) - std::sqrt(n[fea_index])) / alpha;
+      ValueType theta = (std::sqrt(n[fea_index] + grad * grad) - std::sqrt(n[fea_index])) / alpha;
       z[fea_index] += grad - theta * ffm.w[fea_index];
       n[fea_index] += grad * grad;
     }
-    std::map<uint32_t,double> sum_ffm;
+    std::map<uint32_t,ValueType> sum_ffm;
     for(size_t i = 0;i < ins_len;++i)
     {
       uint32_t fea_x = fea_vec[i].fea_index;
       uint32_t field_x = fea_vec[i].field_index;
-      uint32_t real_fea_x = 
-                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
 
       for(size_t j = i+1; j < ins_len;++j)
       {
         uint32_t fea_y = fea_vec[j].fea_index;
         uint32_t field_y = fea_vec[j].field_index;
         uint32_t real_fea_y = 
-                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+        uint32_t real_fea_x = 
+                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+
         if(i != j) {
           for(size_t k = 0;k < ffm.param.d;++k) {
             uint32_t real_index = real_fea_x + k;
@@ -331,8 +334,8 @@ public:
         uint32_t real_fea_index = 
                   (fea_index) * ffm.param.m * ffm.param.d + (field_index - 1) * ffm.param.d + k;
         uint32_t map_fea_index = real_fea_index + ffm.param.n;
-        double g_ffm = grad * sum_ffm[map_fea_index];
-        double theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index])) / alpha_ffm;
+        ValueType g_ffm = grad * sum_ffm[map_fea_index];
+        ValueType theta = (std::sqrt(n_ffm[real_fea_index] + g_ffm * g_ffm) - std::sqrt(n_ffm[real_fea_index])) / alpha_ffm;
         z_ffm[real_fea_index] += g_ffm - theta * ffm.w[map_fea_index];
         n_ffm[real_fea_index] += g_ffm * g_ffm;
       }
@@ -342,9 +345,9 @@ public:
 
   virtual void UpdateOneIter(const Instance &ins) 
   {
-    double p = Predict(PredictRaw(ins));
+    ValueType p = Predict(PredictRaw(ins));
     int label = ins.label;
-    double grad = p - label;
+    ValueType grad = p - label;
     AuxUpdate(ins,grad);
   }
 
@@ -385,8 +388,8 @@ private:
   dmlc::RowBlockIter<unsigned> *dtest;
 
   FFMModel ffm;
-  double *n,*z;
-  double *n_ffm,*z_ffm;
+  ValueType *n,*z;
+  ValueType *n_ffm,*z_ffm;
 
   float alpha,beta;
   float alpha_ffm,beta_ffm;
@@ -403,7 +406,7 @@ private:
 
   std::vector<Metric::pair_t> pair_vec;
   std::default_random_engine generator;
-  std::normal_distribution<double> *p_gauss_distribution;
+  std::normal_distribution<ValueType> *p_gauss_distribution;
 }; //end class
 
 } // end namespace
