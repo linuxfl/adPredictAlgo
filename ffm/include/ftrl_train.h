@@ -229,17 +229,18 @@ public:
       uint32_t fea_x = fea_vec[i].fea_index;
       for(size_t j = 0;j < ins_len;++j) {
         uint32_t field_y = fea_vec[j].field_index;
+        if(i != j) {
+          for(size_t k = 0;k < ffm.param.d;++k) {
+            uint32_t real_fea_index =
+                    (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d + k;
+            uint32_t map_fea_index = real_fea_index + ffm.param.n;
 
-        for(size_t k = 0;k < ffm.param.d;++k) {
-          uint32_t real_fea_index =
-                  (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d + k;
-          uint32_t map_fea_index = real_fea_index + ffm.param.n;
-
-          if(std::fabs(z_ffm[real_fea_index]) < l1_ffm_reg){
-            ffm.w[map_fea_index] = 0.0;
-          }else{
-            ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
-                          ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
+            if(std::fabs(z_ffm[real_fea_index]) < l1_ffm_reg){
+              ffm.w[map_fea_index] = 0.0;
+            }else{
+              ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
+                            ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
+            }
           }
         }
       }
@@ -251,15 +252,15 @@ public:
       uint32_t field_x = fea_vec[i].field_index;
 
       for(size_t j = i+1;j < ins_len;++j) {
-        uint32_t fea_y = fea_vec[j].fea_index;
-        uint32_t field_y = fea_vec[j].field_index;
+        if(i != j) {
+          uint32_t fea_y = fea_vec[j].fea_index;
+          uint32_t field_y = fea_vec[j].field_index;
 
-        uint32_t real_fea_y =
-                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
-        uint32_t real_fea_x =
-                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+          uint32_t real_fea_y =
+                    ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+          uint32_t real_fea_x =
+                    ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
 
-        if(i != j){
           for(size_t k = 0;k < ffm.param.d;++k) {
             sum += ffm.w[real_fea_x + k] * ffm.w[real_fea_y + k];
           }
@@ -309,14 +310,14 @@ public:
 
       for(size_t j = 0; j < ins_len;++j)
       {
-        uint32_t fea_y = fea_vec[j].fea_index;
-        uint32_t field_y = fea_vec[j].field_index;
-        uint32_t real_fea_y = 
-                  ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
-        uint32_t real_fea_x = 
-                  ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
-
         if(i != j) {
+          uint32_t fea_y = fea_vec[j].fea_index;
+          uint32_t field_y = fea_vec[j].field_index;
+          uint32_t real_fea_y =
+                    ffm.param.n + (fea_y) * ffm.param.m * ffm.param.d + (field_x - 1) * ffm.param.d;
+          uint32_t real_fea_x =
+                    ffm.param.n + (fea_x) * ffm.param.m * ffm.param.d + (field_y - 1) * ffm.param.d;
+
           for(size_t k = 0;k < ffm.param.d;++k) {
             uint32_t real_index = real_fea_x + k;
             if(sum_ffm.find(real_index) != sum_ffm.end())
