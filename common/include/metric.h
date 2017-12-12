@@ -19,8 +19,8 @@ class Metric
 
   public:
     static double CalAUC(std::vector<pair_t> p) {
-      long total_score = 0;
-      long pos_num = 0;
+      long long total_score = 0;
+      long long pos_num = 0;
 
       sort(p.begin(),p.end());
       size_t num = p.size();
@@ -36,7 +36,7 @@ class Metric
     }
 
     static double CalCOPC(const std::vector<pair_t> &p) {
-      float score = 0.0;
+      double score = 0.0;
       int label = 0;
       for(auto iter = p.begin();iter != p.end();iter++) {
         score += iter->score;

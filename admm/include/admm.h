@@ -68,32 +68,24 @@ class ADMM {
 
       if(cfg_.count("rank"))
         rank = static_cast<int>(atoi(cfg_["rank"].c_str()));
-
       if(cfg_.count("num_fea"))
         num_fea = static_cast<uint32_t>(atoi(cfg_["num_fea"].c_str()));
-
       if(cfg_.count("learner"))
         learner = cfg_["learner"];
-
       if(cfg_.count("admm_max_iter"))
         admm_max_iter = static_cast<int>(atoi(cfg_["admm_max_iter"].c_str()));
-
       if(cfg_.count("l1_reg"))
         l1_reg = static_cast<float>(atof(cfg_["l1_reg"].c_str()));
-
       if(cfg_.count("l2_reg"))
         l2_reg = static_cast<float>(atof(cfg_["l2_reg"].c_str()));
-
       if(cfg_.count("rho"))
         rho = static_cast<float>(atof(cfg_["rho"].c_str()));
-
       if(cfg_.count("train_data"))
         train_data = cfg_["train_data"];
-      
       if(cfg_.count("num_procs"))
         num_procs = static_cast<int>(atoi(cfg_["num_procs"].c_str()));
 
-	  CHECK(train_data != "NULL") << "train data must be set.";
+      CHECK(train_data != "NULL") << "train data must be set.";
 
       train_data += std::to_string(rank);
       dtrain = dmlc::RowBlockIter<unsigned>::Create(
@@ -113,7 +105,7 @@ class ADMM {
                  << ",l1_reg=" << l1_reg << ",l2_reg=" << l2_reg 
                  << ",learner=" << learner << ",admm_max_iter=" << admm_max_iter
                  << ",rho=" << rho << ",train_data=" << train_data;
-      
+
       //optimizer
       optimizer = Learner::Create(learner.c_str());
       if(optimizer == nullptr)
@@ -173,6 +165,7 @@ class ADMM {
        if(IsStop(iter))
          break;
        iter++;
+       TaskPred();
      }
      SaveModel();
    }
@@ -185,13 +178,16 @@ class ADMM {
         const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
-          float score = optimizer->PredIns(v,primal);
+          float score = optimizer->PredIns(v,cons);
           Metric::pair_t p(score,v.get_label());
           pair_vec.push_back(p);
         }   
       }   
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
-                << ",COPC=" << Metric::CalCOPC(pair_vec);
+                << ",COPC=" << Metric::CalCOPC(pair_vec)
+                << ",LogLoss=" << Metric::CalLogLoss(pair_vec)
+                << ",RMSE=" << Metric::CalMSE(pair_vec)
+                << ",MAE=" << Metric::CalMAE(pair_vec);
    }
 
    //save model
@@ -205,7 +201,7 @@ class ADMM {
    void LoadModel() {
     std::ifstream is("model.dat");
     for(uint32_t i = 0;i < num_fea;i++)
-      is >> primal[i];
+      is >> cons[i];
     is.close();
    }
 
