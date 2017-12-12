@@ -94,6 +94,20 @@ public:
     {
       os << w[i] << std::endl;
     }
+    /*for(size_t i = 0; i < param.n;i++)
+        os << w[i] << std::endl;
+
+    for(size_t k = 0;k < param.n;k++){
+        for(size_t i = 1;i <= param.m;i++)
+        {
+            os << "field:" << i << " " ;
+            for(size_t j = 0;j < param.d;j++)
+            {
+                os << w[param.n + k * (i-1) * param.d + j] << " ";
+            }
+            os << std::endl;
+        }
+    }*/
   }
 
   virtual void LoadModel(std::ifstream &is) {
