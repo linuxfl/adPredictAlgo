@@ -68,6 +68,10 @@ public:
     z_ffm = new ValueType[ftrl_param_size];
     n_ffm = new ValueType[ftrl_param_size];
 
+    memset(z, 0.0, (ffm.param.n + 1) * sizeof(ValueType));
+    memset(n, 0.0, (ffm.param.n + 1) * sizeof(ValueType));
+    memset(n_ffm, 0.0, (ftrl_param_size) * sizeof(ValueType));
+
     p_gauss_distribution = new std::normal_distribution<ValueType>(0.0,0.01);
     for(size_t i = 0;i < ftrl_param_size;++i){
       z_ffm[i] = (*p_gauss_distribution)(generator);
@@ -240,8 +244,6 @@ public:
             }else{
               ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
                             ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
-              if(std::fabs(ffm.w[map_fea_index]) < ffm._ffm_model_val_bound)
-                ffm.w[map_fea_index] = 0.0;
             }
           }
         }

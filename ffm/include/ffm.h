@@ -9,7 +9,6 @@
 namespace adPredictAlgo {
 //for sparse value
 typedef float ValueType;
-const ValueType kValueTypeMin = std::numeric_limits<ValueType>::min();
 
 typedef struct {
   uint32_t fea_index; //feature index
@@ -55,7 +54,6 @@ public:
 
     if(w == nullptr)
       w = new ValueType[ffm_model_size];
-    _ffm_model_val_bound = pow(kValueTypeMin, 1.0/param.d);
   }
 
   inline void SetParam(const char *name,const char *val)
@@ -127,7 +125,6 @@ public:
 
   ModelParam param;
   ValueType *w; // ffm model parameter
-  ValueType _ffm_model_val_bound;
 private:
   size_t ffm_model_size;
 };
