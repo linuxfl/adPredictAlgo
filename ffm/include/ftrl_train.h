@@ -56,7 +56,7 @@ public:
     size_t ftrl_param_size = ffm.param.n * ffm.param.m * ffm.param.d;
     ffm_model_size = ffm.GetModelSize();
 
-    ValueType memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(double) * 1.0 / 1024 / 1024 / 1024;
+    ValueType memory_use = (ffm.param.n * 3 + ftrl_param_size * 3) * sizeof(ValueType) * 1.0 / 1024 / 1024 / 1024;
     LOG(INFO) << "num_fea=" << ffm.param.n << ", ffm_dim=" << ffm.param.d << ", num_field="<< ffm.param.m 
               << ", num_epochs=" << num_epochs << ", use_memory=" << memory_use << " GB";
     
@@ -240,6 +240,8 @@ public:
             }else{
               ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
                             ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
+              if(std::fabs(ffm.w[map_fea_index]) < ffm._ffm_model_val_bound)
+                ffm.w[map_fea_index] = 0.0;
             }
           }
         }
