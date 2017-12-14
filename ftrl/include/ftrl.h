@@ -151,7 +151,7 @@ class Ftrl
         for(size_t i = 0;i < batch.size;i++)
         {
           dmlc::Row<unsigned> v = batch[i];
-          for(unsigned j = 0;j < v.length;j++) {
+        /*  for(unsigned j = 0;j < v.length;j++) {
             unsigned fea_index = v.index[j];
             float z_val = z[fea_index];
             float n_val = n[fea_index];
@@ -162,7 +162,8 @@ class Ftrl
               w[fea_index] = (Sign(z_val) * l1_reg - z_val) / \
                 (l2_reg + (beta + std::sqrt(n_val)) / alpha);
             }
-          }
+          }*/
+
           float grad = PredIns(v) - v.get_label();
           for(unsigned j = 0;j < v.length;j++) {
             unsigned fea_index = v.index[j];
@@ -173,6 +174,17 @@ class Ftrl
                 - std::sqrt(n_val)) / alpha;
             z[fea_index] += grad - theta * w_val;
             n[fea_index] += grad * grad;
+
+            float z_val = z[fea_index];
+            //float n_val = n[fea_index];
+
+            if (fabs(z_val) < l1_reg) {
+              w[fea_index] = 0;
+            }else{
+              w[fea_index] = (Sign(z_val) * l1_reg - z_val) / \
+                (l2_reg + (beta + std::sqrt(n_val)) / alpha);
+            }
+
           }
           
           count++;
@@ -198,7 +210,7 @@ class Ftrl
     void TrainIns(const instance &ins) {
       std::vector<unsigned> fea_vec = ins.fea_vec;
       size_t ins_len = fea_vec.size();
-      for(size_t i = 0;i < ins_len;i++)
+      /*for(size_t i = 0;i < ins_len;i++)
       {
         unsigned fea_index = fea_vec[i];
         float z_val = z[fea_index];
@@ -210,7 +222,7 @@ class Ftrl
           w[fea_index] = (Sign(z_val) * l1_reg - z_val) / \
             (l2_reg + (beta + std::sqrt(n_val)) / alpha);
           }
-      }
+      }*/
       float grad = PredIns(ins) - ins.label;
       for(size_t i = 0;i < ins_len;i++) {
         unsigned fea_index = fea_vec[i];
@@ -221,6 +233,17 @@ class Ftrl
             - std::sqrt(n_val)) / alpha;
         z[fea_index] += grad - theta * w_val;
         n[fea_index] += grad * grad;
+
+        float z_val = z[fea_index];
+        //float n_val = n[fea_index];
+
+        if (fabs(z_val) < l1_reg) {
+          w[fea_index] = 0;
+         }else{
+          w[fea_index] = (Sign(z_val) * l1_reg - z_val) / \
+            (l2_reg + (beta + std::sqrt(n_val)) / alpha);
+          }
+
        }
     }
 
