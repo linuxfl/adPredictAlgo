@@ -10,7 +10,7 @@
 namespace adPredictAlgo {
 
 struct LinearModel {
-    
+
   size_t num_fea;
   Eigen::VectorXf old_weight;
   Eigen::VectorXf new_weight;
@@ -35,13 +35,12 @@ struct LinearModel {
     }
   }
   
-  inline double Sigmoid(float inx) const {  
+  inline float Sigmoid(float inx) const {
     return 1.0 / (1 + std::exp(-inx));
   }
 
-  
-  inline double CalLoss(float label,float margin) const {
-    double nlogprob = 0.0;
+  inline float CalLoss(float label,float margin) const {
+    float nlogprob = 0.0;
     if(int(label) == 1) {
       nlogprob = std::log(Sigmoid(margin));
     }else {
@@ -50,9 +49,9 @@ struct LinearModel {
     return -nlogprob;
   }
 
-  inline double InnerProduct(const Eigen::VectorXf &w,
+  inline float InnerProduct(const Eigen::VectorXf &w,
                              const dmlc::Row<unsigned> &v) const {
-    double sum = 0.0;
+    float sum = 0.0;
     for(unsigned i = 0;i < v.length;i++) {
       if(v.index[i] < num_fea) {
         sum += w[v.index[i]];
@@ -61,20 +60,31 @@ struct LinearModel {
     return sum;
   }
 
-  inline double Pred(const Eigen::VectorXf &w,
+  inline float Pred(const Eigen::VectorXf &w,
                      const dmlc::Row<unsigned> &v) const {
     return Sigmoid(InnerProduct(w,v));
   }
 
-  inline double PredToGrad(const Eigen::VectorXf &w,
-                           const dmlc::Row<unsigned> &v) const {
+  virtual float Pred(const float *w,
+                     const dmlc::Row<unsigned> &v) const {
+    float sum = 0.0f;
+    for(unsigned i = 0; i < v.length;i++) {
+      if(v.index[i] < num_fea) {
+        sum += w[v.index[i]];
+      }
+    }
+    return Sigmoid(sum);
+  }
+
+  inline float PredToGrad(const Eigen::VectorXf &w,
+                          const dmlc::Row<unsigned> &v) const {
     return Sigmoid(InnerProduct(w,v)) - v.get_label();
   }
 
   virtual void CalGrad(Eigen::VectorXf &out_grad,
                        const Eigen::VectorXf &weight,
                        dmlc::RowBlockIter<unsigned> *dtrain) const {
-    std::vector<double> grad;
+    std::vector<float> grad;
     out_grad.setZero();
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
@@ -97,22 +107,22 @@ struct LinearModel {
       }
     }
   }
-  
-  virtual double Eval(dmlc::RowBlockIter<unsigned> *dtrain,
+
+  virtual float Eval(dmlc::RowBlockIter<unsigned> *dtrain,
                       const Eigen::VectorXf &weight) {
-    double sum_val = 0.0f;
+    float sum_val = 0.0f;
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
       const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
       for(size_t i = 0;i < batch.size;i++) {
-        double fv 
+        float fv
             = CalLoss(batch[i].get_label(),InnerProduct(weight,batch[i]));
         sum_val += fv;
       }
     }
 
     if(l2_reg != 0.0f) {
-      double sum_sqr = 0.5 * l2_reg * weight.norm();
+      float sum_sqr = 0.5 * l2_reg * weight.norm();
       sum_val += sum_sqr;
     }
     return sum_val;

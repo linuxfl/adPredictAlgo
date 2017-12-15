@@ -55,6 +55,12 @@ class LBFGSSolver{
       Eigen::VectorXf selem(num_fea);
       y.resize(memory_size,yelem);
       s.resize(memory_size,selem);
+
+      if(model_in != "NULL") {
+        LOG(INFO) << "load old model...";
+        LoadModel();
+      }
+
       //init gradient
       linear.CalGrad(grad,linear.old_weight,dtrain);
       //init l1 gradient;
@@ -68,7 +74,7 @@ class LBFGSSolver{
                 << ",lbfgs_stop_tol=" << lbfgs_stop_tol << ",max_lbfgs_iter=" << max_lbfgs_iter << ",max_linesearch_iter="
                 << max_linesearch_iter;
     }
-    
+
     inline void SetParam(const char *name,const char *val) {
       if(!strcmp(name,"l1_reg")) 
           l1_reg = static_cast<float>(atof(val));
@@ -92,7 +98,7 @@ class LBFGSSolver{
           model_in = val;
       if(!strcmp(name,"model_out"))
           model_out = val;
-      
+
       linear.SetParam(name,val);
     }
 
@@ -100,21 +106,27 @@ class LBFGSSolver{
     virtual float FindChangeDirection(int iter) {
       int k = iter;
       int M = memory_size;
-      int j;
-    
+      int j,bound,end = 0;
+
+      if(k != 0)
+        end = (k-1) % M;
       z = l1_grad;
-      k - M >= 0? j = M - 1:j = k - 1;
-      for(int i = j; i >= 0;i--){
-        alpha[i] = s[i].dot(z)/y[i].dot(s[i]);
-        z.noalias() -=  alpha[i] * y[i];
+      //k - M >= 0? j = M - 1:j = k - 1;
+      k > M? bound = M - 1:bound = k - 1;
+      j = end;
+      for(int i = 0; i <= bound;++i) {
+        alpha[j] = s[j].dot(z)/y[j].dot(s[j]);
+        z.noalias() -=  alpha[j] * y[j];
+        j = (j - 1 + M) % M;
       }
       //init H0
       if(k != 0){
         int pre_k = (k - 1)  % M;
         z = s[pre_k].dot(y[pre_k])/y[pre_k].dot(y[pre_k]) * z;
       }
-      for(int i = 0;i <= j;i++){
-        z.noalias() += s[i] * (alpha[i] - y[i].dot(z)/y[i].dot(s[i]));
+      for(int i = 0;i <= bound;++i){
+        j = (j + 1) % M;
+        z.noalias() += s[j] * (alpha[j] - y[j].dot(z)/y[j].dot(s[j]));
       }
       //SetDirL1Sign(l1_grad,grad,linear.old_weight);
       FixL1Sign(z,l1_grad);
@@ -138,8 +150,9 @@ class LBFGSSolver{
                               const Eigen::VectorXf &weight) {
       if(l1_reg == 0.0f){
         out_dir = grad;
+        return;
       }
-      
+
       for(size_t i = 0;i < num_fea;i++) {
         if(weight[i] == 0.0f){
           if(grad[i] > l1_reg){
@@ -184,7 +197,7 @@ class LBFGSSolver{
       float backoff = linesearch_backoff;
       float c1 = linesearch_c1;
       float dginit = 0.0,dgtest;
-      
+
       if(iter == 0) {
           alpha_ = 1.0f / std::sqrt(-dot_dir_l1grad);
           backoff = 0.1f;
@@ -226,7 +239,7 @@ class LBFGSSolver{
       int k = BacktrackLineSearch(linear.new_weight,linear.old_weight,vdot,iter);
       UpdateHistInfo(iter);
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval) 
-        return true;  
+        return true;
       LOG(INFO) << "[" << iter <<"]" << " L-BFGS: linesearch finishes in "<< k << " rounds, new_objval="
                 << new_objval << ", improvment=" << old_objval - new_objval;
       old_objval = new_objval;
@@ -236,41 +249,51 @@ class LBFGSSolver{
     virtual void TaskPred(void) {
       num_fea = std::max(num_fea,dtrain->NumCol());
       Eigen::VectorXf weight = Eigen::VectorXf::Zero(num_fea);
-      
+      //float *weight = new float[num_fea];
+
       std::ifstream is(model_in.c_str());
       CHECK(is.fail() == false) << "open model file error!";
-      
+
       for(size_t i = 0;i < num_fea;i++)
         is >> weight[i];
-    
+
       std::vector<Metric::pair_t> pair_vec;
       dtrain->BeforeFirst();
       while(dtrain->Next()) {
         const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
-          for(unsigned j = 0; j < v.length;j++) {
-            double pv = linear.Pred(weight,v);
-            Metric::pair_t p(pv,v.get_label());
-            pair_vec.push_back(p);
-          }
+          double pv = linear.Pred(weight,v);
+          Metric::pair_t p(pv,v.get_label());
+          pair_vec.push_back(p);
         }
       }
-        
+
       is.close();
-      
+
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
                 << ", Test COPC=" << Metric::CalCOPC(pair_vec);
     }
-    
+
     virtual void SaveModel() {
       std::ofstream os(model_out.c_str());
-      
+
       CHECK(os.fail() == false) << "open model file fail";
       for(size_t i = 0;i < num_fea;i++) {
         os << linear.old_weight[i] << std::endl;
       }
       os.close();
+    }
+
+    virtual void LoadModel() {
+      std::ifstream is(model_in.c_str());
+
+      CHECK(is.fail() == false) << "open model file fail";
+      for(size_t i = 0;i < num_fea;++i)
+      {
+        is >> linear.old_weight[i];
+      }
+      is.close();
     }
 
     virtual void TaskTrain(void) {
@@ -296,7 +319,7 @@ class LBFGSSolver{
     virtual double Eval(dmlc::RowBlockIter<unsigned> *dtrain,
                             const Eigen::VectorXf &weight) {
       double fv = linear.Eval(dtrain,weight);
-        
+
       if (l1_reg) {
         for(size_t i = 0;i < num_fea;i++) {
           fv += l1_reg * std::abs(weight[i]);
@@ -315,7 +338,7 @@ class LBFGSSolver{
     size_t memory_size;
 
     LinearModel linear;
-  
+
     //obj
     double new_objval;
     double old_objval;
@@ -326,7 +349,7 @@ class LBFGSSolver{
     std::vector<float> alpha;
     std::vector<Eigen::VectorXf> y;
     std::vector<Eigen::VectorXf> s;
-    
+
     Eigen::VectorXf z;
     Eigen::VectorXf grad;
     Eigen::VectorXf l1_grad;
