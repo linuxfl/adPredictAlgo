@@ -45,6 +45,9 @@ class ADMM {
        delete [] cons_pre;
      if(w != nullptr)
        delete [] w;
+
+     if(optimizer != nullptr)
+       delete optimizer;
    }
 
    //init
@@ -57,6 +60,10 @@ class ADMM {
      cons = new float[num_fea];
      cons_pre = new float[num_fea];
      w = new float[num_fea];
+
+     memset(primal,0.0,sizeof(float) * num_fea);
+     memset(dual,0.0,sizeof(float) * num_fea);
+     memset(cons,0.0,sizeof(float) * num_fea);
    }
  
    void Configure(
@@ -127,7 +134,7 @@ class ADMM {
 
    //update z
    void UpdateConsensus() {
-     float s = 1.0f / (rho * num_procs + 2 * l2_reg);
+     float s = 1. / (rho * num_procs + 2 * l2_reg);
      float t = s * l1_reg;
 
      for(uint32_t i = 0;i < num_fea;i++)
@@ -188,6 +195,10 @@ class ADMM {
                 << ",LogLoss=" << Metric::CalLogLoss(pair_vec)
                 << ",RMSE=" << Metric::CalMSE(pair_vec)
                 << ",MAE=" << Metric::CalMAE(pair_vec);
+      //std::ofstream os("pred.txt");
+      //for(size_t i = 0;i < pair_vec.size();i++)
+      //  os << pair_vec[i].t_label << " " << pair_vec[i].score << std::endl;
+      //os.close();
    }
 
    //save model

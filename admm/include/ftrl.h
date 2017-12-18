@@ -87,6 +87,9 @@ class FTRL : public Learner {
       CHECK(num_fea != 0) << "num_fea must be init.";
       z = new float[num_fea];
       n = new float[num_fea];
+
+      memset(z,0.0,sizeof(float) * num_fea);
+      memset(n,0.0,sizeof(float) * num_fea);
     }
 
     float PredIns(const dmlc::Row<unsigned> &v,
@@ -99,7 +102,7 @@ class FTRL : public Learner {
     }
 
     inline float Sigmoid(const float &inx) {
-      return 1.0f / (1.0f + std::exp(-std::min(std::max(inx,-15.0f),15.0f)));
+      return 1.0f / (1.0f + std::exp(-inx));
     }
 
   private:
