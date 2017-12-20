@@ -140,6 +140,9 @@ class Ftrl
       n = new float[num_fea];
       z = new float[num_fea];
 
+      memset(w,0.0,sizeof(float) * num_fea);
+      memset(n,0.0,sizeof(float) * num_fea);
+      memset(z,0.0,sizeof(float) * num_fea);
       InitBaseScore();
     }
 
@@ -302,7 +305,9 @@ class Ftrl
         }
       }
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
-                << ",COPC=" << Metric::CalCOPC(pair_vec);
+                << ",COPC=" << Metric::CalCOPC(pair_vec)
+                << ",LogLoss=" << Metric::CalLogLoss(pair_vec)
+                << ",MSE=" << Metric::CalMSE(pair_vec);
     }
     
     inline int Sign(float val) {
