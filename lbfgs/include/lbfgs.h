@@ -20,7 +20,7 @@ class LBFGSSolver{
       :dtrain(dtrain)
     {
       l1_reg = 0.0f;
-      linesearch_c1 = 0.1f;
+      linesearch_c1 = 1e-4f;
       linesearch_backoff = 0.5f;
       lbfgs_stop_tol = 1e-4f;
       memory_size = 4;

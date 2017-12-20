@@ -122,7 +122,7 @@ struct LinearModel {
     }
 
     if(l2_reg != 0.0f) {
-      float sum_sqr = 0.5 * l2_reg * weight.norm();
+      float sum_sqr = 0.5 * l2_reg * weight.squaredNorm();
       sum_val += sum_sqr;
     }
     return sum_val;
