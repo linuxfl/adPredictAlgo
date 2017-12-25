@@ -45,7 +45,9 @@ class SovlerServer {
 
       memset(n,0.0,num_fea);
       memset(z,0.0,num_fea);
-
+      
+      LOG(INFO) << "1 SolverServer Start ," << num_procs - 1 << " SolverWorkers Start";
+      
       dtest = dmlc::RowBlockIter<unsigned>::Create(
                           test_data.c_str(),
                           0,
@@ -53,8 +55,6 @@ class SovlerServer {
                           "libsvm"
                           );
       lr.Init();
-      LOG(INFO) << "SolverServer Start ," << " num_procs" << num_procs
-                << " SolverWorkers ";
     }
 
     inline void SetParam(const char *name,const char *val)

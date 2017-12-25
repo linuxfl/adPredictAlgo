@@ -54,6 +54,8 @@ class SovlerWorker {
           dl_.reset();
         }
         iter++;
+        if(iter % 1000 == 0 && rank == 1)
+          LOG(INFO) << "train instance=" << iter * train_size;
       }
     }
 
@@ -72,26 +74,21 @@ class SovlerWorker {
         for(size_t k = 0;k < ins.fea_vec.size();++k)
           send_keys.push_back(ins.fea_vec[k]);
       }
-      train_size += data.size();
-      
-      if(rank == 1)
-        LOG(INFO) << "Train Instance=" << train_size;
+      train_size = data.size();
+       
+      //if(rank == 1)
+      //  LOG(INFO) << "Train Instance=" << train_size;
 
       sort(send_keys.begin(),send_keys.end());
       send_keys.erase(unique(send_keys.begin(), send_keys.end()), send_keys.end());
 
       //send the keys index
-      //std::cout << "SendKeysToServer" << std::endl;
       SendKeysToServer(send_keys);
       //recv the weight to update
-      //std::cout << "RecvWeightFromServer" << std::endl;
       RecvWeightFromServer(keys_weight, send_keys);
       //calc the gradient
       CalGrad(keys_weight,grad);
-
-      //std::cout << "SendGradToServer" << std::endl;
       SendGradToServer(grad, send_keys);
-      //std::cout << "done.." << std::endl;
       return stop;
     }
 

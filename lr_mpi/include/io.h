@@ -34,8 +34,6 @@ class DataLoader {
       assert(train_data != "NULL");
 
       train_data += std::to_string(rank);
-      std::cout << "DataLoader Param ," << "train_data="<< train_data << ", rank=" << rank << std::endl;
-
       if((fp = fopen(train_data.c_str(),"r")) == NULL){
         std::cout << "open train data error!" << std::endl;
         exit(1);
