@@ -45,9 +45,9 @@ class SovlerServer {
 
       memset(n,0.0,num_fea);
       memset(z,0.0,num_fea);
-      
+
       LOG(INFO) << "1 SolverServer Start ," << num_procs - 1 << " SolverWorkers Start";
-      
+
       dtest = dmlc::RowBlockIter<unsigned>::Create(
                           test_data.c_str(),
                           0,
@@ -100,16 +100,12 @@ class SovlerServer {
       std::vector<std::vector<float> > grad;
 
       //recv the number of keys from work
-      //std::cout << "RecvKeyNumFromWork" << std::endl;
       RecvKeyNumFromWork(recv_keys_num);
       //recv keys from work
-      //std::cout << "RecvKeysFromWork" << std::endl;
       RecvKeysFromWork(recv_keys, recv_keys_num);
       //send the weight to every works
-      //std::cout << "SendWeightToWork " << std::endl;
       SendWeightToWork(recv_keys);
       //Recv grad from every works
-      //std::cout << "RecvGradFromWork" << std::endl;
       RecvGradFromWork(recv_keys, grad);
       //update param
       UpdateModel(grad, recv_keys);
@@ -129,7 +125,7 @@ class SovlerServer {
           pair_vec.push_back(p);
         }
       }
-      LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
+      LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec)
                 << ",COPC=" << Metric::CalCOPC(pair_vec)
                 << ",LogLoss=" << Metric::CalLogLoss(pair_vec)
                 << ",MSE=" << Metric::CalMSE(pair_vec);
@@ -139,7 +135,7 @@ class SovlerServer {
     {
         return 1. / (1 + std::exp(-inx));
     }
-    
+
     inline float PredIns(dmlc::Row<unsigned> v)
     {
         float sum = 0;
@@ -190,7 +186,7 @@ class SovlerServer {
         }        
       }
     }
-    
+
     int Sign(float inx)
     {
       return inx > 0 ? 1:-1;
@@ -248,7 +244,7 @@ class SovlerServer {
         MPI_Send(&w[0],keys[i - 1].size(), MPI_FLOAT, i, 101, MPI_COMM_WORLD);
       }
     }
-    
+
     virtual void DumpModel()
     {
       std::ofstream os("model.dat");
@@ -258,7 +254,7 @@ class SovlerServer {
   private:
     float alpha,beta;
     float *n,*z;
-   
+
     float l1_reg,l2_reg;
 
     int num_procs;

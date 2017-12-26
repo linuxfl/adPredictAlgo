@@ -18,6 +18,7 @@ class SovlerWorker {
     {
       num_fea = 0;
       train_size = 0;
+      all_train_size = 0;
     }
 
     virtual ~SovlerWorker()
@@ -47,15 +48,15 @@ class SovlerWorker {
       LOG(INFO) << "SovlerWorker " << rank << " Start"<< ", num_fea=" << num_fea 
                 << ", minibatch_size=" << minibatch_size; 
       dl_.Init();
-     
+
       int iter = 0;
       while(iter < num_epochs){
         if(!this->UpdateOneIter()){
           dl_.reset();
         }
         iter++;
-        if(iter % 1000 == 0 && rank == 1)
-          LOG(INFO) << "train instance=" << iter * train_size;
+        //if(iter % 1000 == 0 && rank == 1)
+         // LOG(INFO) << "train instance=" << iter * train_size;
       }
     }
 
@@ -75,9 +76,9 @@ class SovlerWorker {
           send_keys.push_back(ins.fea_vec[k]);
       }
       train_size = data.size();
-       
-      //if(rank == 1)
-      //  LOG(INFO) << "Train Instance=" << train_size;
+      all_train_size += train_size; 
+      if(rank == 1)
+        LOG(INFO) << "Train Instance=" << all_train_size;
 
       sort(send_keys.begin(),send_keys.end());
       send_keys.erase(unique(send_keys.begin(), send_keys.end()), send_keys.end());
@@ -134,9 +135,9 @@ class SovlerWorker {
         for(size_t j = 0;j < ins.fea_vec.size();++j)
         {
           if(grad.count(ins.fea_vec[j]))
-            grad[ins.fea_vec[j]] += g;
+            grad[ins.fea_vec[j]] += g / train_size;
           else
-            grad[ins.fea_vec[j]] = g;
+            grad[ins.fea_vec[j]] = g / train_size;
         }
       }
     }
@@ -170,6 +171,7 @@ class SovlerWorker {
     int num_epochs;
     int train_size;
     int rank;
+    int all_train_size;
 };
 }
 
