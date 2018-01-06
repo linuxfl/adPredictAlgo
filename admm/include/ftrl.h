@@ -45,6 +45,10 @@ class FTRL : public Learner {
                float rho,
                dmlc::RowBlockIter<unsigned> *dtrain)
     {
+      memset(primal,0.0,sizeof(float)*num_fea);
+      memset(n,0.0,sizeof(float)*num_fea);
+      memset(z,0.0,sizeof(float)*num_fea);
+
       for(int iter = 0; iter < epochs;iter++){
         dtrain->BeforeFirst();
         while(dtrain->Next())  {
