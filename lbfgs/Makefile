@@ -2,8 +2,8 @@ CXX = g++
 
 DEPS_PATH = ../common
 
-LDFLAGS = -lpthread
-CFLAGS = -O3 -Wall -Iinclude -std=c++0x
+LDFLAGS = -lpthread -fopenmp
+CFLAGS = -O3 -Wall -Iinclude -std=c++0x -fopenmp
 
 CFLAGS += -I$(DEPS_PATH)/include
 

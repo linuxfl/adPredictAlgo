@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <dmlc/data.h>
 #include <cstring>
+#include <omp.h>
 
 //Logistic Regression Model
 namespace adPredictAlgo {
@@ -15,10 +16,12 @@ struct LinearModel {
   Eigen::VectorXf old_weight;
   Eigen::VectorXf new_weight;
   float l2_reg;
-  
+  int nthread;
+
   LinearModel(void){
     num_fea = 0;
     l2_reg = 0.0f;
+    nthread = 1;
   }
 
   inline void Init(size_t _num_fea) {
@@ -32,6 +35,10 @@ struct LinearModel {
     }
     if(!strcmp(name,"num_fea")) {
       num_fea = static_cast<size_t>(atoi(val));
+    }
+    if(!strcmp(name,"nthread"))
+    {
+      nthread = static_cast<int>(atoi(val));
     }
   }
   
@@ -84,16 +91,19 @@ struct LinearModel {
   virtual void CalGrad(Eigen::VectorXf &out_grad,
                        const Eigen::VectorXf &weight,
                        dmlc::RowBlockIter<unsigned> *dtrain) const {
+    if(nthread != 0) omp_set_num_threads(nthread);
     std::vector<float> grad;
     out_grad.setZero();
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
       const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
       grad.resize(batch.size,0.0f);
+      #pragma omp parallel for schedule(static)
       for(size_t i = 0;i < batch.size;i++) {
         dmlc::Row<unsigned> v = batch[i];
         grad[i] = PredToGrad(weight,v);
       }
+      #pragma omp parallel
       for(size_t i = 0;i < batch.size;i++) {
         dmlc::Row<unsigned> v = batch[i];
         for(size_t j = 0; j < v.length;j++) {
@@ -114,6 +124,7 @@ struct LinearModel {
     dtrain->BeforeFirst();
     while(dtrain->Next()) {
       const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
+      #pragma omp parallel for schedule(static) reduction(+:sum_val)
       for(size_t i = 0;i < batch.size;i++) {
         float fv
             = CalLoss(batch[i].get_label(),InnerProduct(weight,batch[i]));

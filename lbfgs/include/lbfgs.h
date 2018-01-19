@@ -14,6 +14,7 @@ class LBFGSSolver{
     std::string task;
     std::string model_out;
     std::string model_in;
+    std::string pred_out;
 
   public: 
     LBFGSSolver(dmlc::RowBlockIter<unsigned> *dtrain)
@@ -32,6 +33,7 @@ class LBFGSSolver{
       task = "train";
       model_out = "lr_model.dat";
       model_in = "NULL";
+      pred_out = "pred.txt";
     }
     
     virtual ~LBFGSSolver() {
@@ -98,6 +100,8 @@ class LBFGSSolver{
           model_in = val;
       if(!strcmp(name,"model_out"))
           model_out = val;
+      if(!strcmp(name,"pred_out"))
+          pred_out = val;
 
       linear.SetParam(name,val);
     }
@@ -252,6 +256,8 @@ class LBFGSSolver{
       //float *weight = new float[num_fea];
 
       std::ifstream is(model_in.c_str());
+      std::ofstream os(pred_out.c_str());
+      
       CHECK(is.fail() == false) << "open model file error!";
 
       for(size_t i = 0;i < num_fea;i++)
@@ -269,13 +275,18 @@ class LBFGSSolver{
         }
       }
 
+      for(size_t i = 0;i < pair_vec.size();++i)
+      {
+        os << pair_vec[i].score << " " << pair_vec[i].t_label << std::endl;
+      }
+      os.close();
       is.close();
 
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
                 << ", Test COPC=" << Metric::CalCOPC(pair_vec);
     }
 
-    virtual void SaveModel() {
+    virtual void SaveModel() const {
       std::ofstream os(model_out.c_str());
 
       CHECK(os.fail() == false) << "open model file fail";
