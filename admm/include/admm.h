@@ -11,8 +11,8 @@
 
 namespace adPredictAlgo {
 
-const double RELTOL = 1e-2;
-const double ABSTOL = 1e-4;
+const double RELTOL = 1e-3;
+const double ABSTOL = 1e-3;
 
 class ADMM {
   public:
@@ -32,6 +32,9 @@ class ADMM {
 
      admm_max_iter = 5;
      train_data = "NULL";
+     pred_out = "pred.txt";
+     model_in = "NULL";
+     model_out = "lr_model.dat";
    }
 
    virtual ~ADMM() {
@@ -91,16 +94,17 @@ class ADMM {
         train_data = cfg_["train_data"];
       if(cfg_.count("num_procs"))
         num_procs = static_cast<int>(atoi(cfg_["num_procs"].c_str()));
+      if(cfg_.count("pred_out"))
+        pred_out = cfg_["pred_out"];
+      if(cfg_.count("model_out"))
+        model_out = cfg_["model_out"];
+      if(cfg_.count("model_in"))
+        model_in = cfg_["model_in"];
 
       CHECK(train_data != "NULL") << "train data must be set.";
 
       train_data += std::to_string(rank);
-      dtrain = dmlc::RowBlockIter<unsigned>::Create(
-                 train_data.c_str(),
-                 0,
-                 1,
-                 "libsvm"
-                );
+      dtrain = dmlc::RowBlockIter<unsigned>::Create(train_data.c_str(),0,1,"libsvm");
 
       dtrain->BeforeFirst();
       while(dtrain->Next())  {
@@ -135,8 +139,7 @@ class ADMM {
    //update z
    void UpdateConsensus() {
      float s = 1. / (rho * num_procs + 2 * l2_reg);
-     float t = s * l1_reg;
-
+     float kappa = s * l1_reg;
      for(uint32_t i = 0;i < num_fea;i++)
      {
        w[i] = s * (rho * primal[i] + dual[i]);
@@ -146,7 +149,7 @@ class ADMM {
      MPI_Allreduce(w, cons,  num_fea, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 
      if(l1_reg != 0.0f)
-       SoftThreshold(t,cons);
+       SoftThreshold(kappa,cons);
    }
 
    //soft threshold
@@ -172,9 +175,28 @@ class ADMM {
        if(IsStop(iter))
          break;
        iter++;
-       TaskPred();
+       //TaskPred();
      }
      SaveModel();
+   }
+
+   float Eva()
+   {
+     float sum = 0;
+     dtrain->BeforeFirst();
+     while(dtrain->Next())
+     {
+       const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
+       for(size_t i = 0;i < batch.size;++i)
+        {
+          dmlc::Row<unsigned> v = batch[i];
+          if(v.get_label() == 0.0)
+            sum += std::log(1 - optimizer->PredIns(v,cons));
+          else
+            sum += std::log(optimizer->PredIns(v,cons));
+        }
+      }
+    return -sum;
    }
 
    //predict task
@@ -188,29 +210,30 @@ class ADMM {
           float score = optimizer->PredIns(v,cons);
           Metric::pair_t p(score,v.get_label());
           pair_vec.push_back(p);
-        }   
-      }   
+        }
+      }
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
                 << ",COPC=" << Metric::CalCOPC(pair_vec)
                 << ",LogLoss=" << Metric::CalLogLoss(pair_vec)
                 << ",RMSE=" << Metric::CalMSE(pair_vec)
                 << ",MAE=" << Metric::CalMAE(pair_vec);
-      //std::ofstream os("pred.txt");
-      //for(size_t i = 0;i < pair_vec.size();i++)
-      //  os << pair_vec[i].t_label << " " << pair_vec[i].score << std::endl;
-      //os.close();
+ 
+      std::ofstream os(pred_out.c_str());
+      for(size_t i = 0;i < pair_vec.size();i++)
+        os << pair_vec[i].t_label << " " << pair_vec[i].score << std::endl;
+      os.close();
    }
 
    //save model
    void SaveModel() {
-     std::ofstream os("model.dat");
+     std::ofstream os(model_out.c_str());
      for(uint32_t i = 0;i < num_fea;i++)
        os << cons[i] << std::endl;
     os.close();
    }
    
    void LoadModel() {
-    std::ifstream is("model.dat");
+    std::ifstream is(model_in.c_str());
     for(uint32_t i = 0;i < num_fea;i++)
       is >> cons[i];
     is.close();
@@ -265,6 +288,7 @@ class ADMM {
   private:
    //training data
    std::string train_data;
+   std::string pred_out;
    dmlc::RowBlockIter<unsigned> *dtrain;
 
    //admm parameter
@@ -288,6 +312,9 @@ class ADMM {
    std::vector<Metric::pair_t> pair_vec;
    //configure
    std::map<std::string,std::string> cfg_;
+
+   std::string model_in;
+   std::string model_out;
 };// class ADMM
 
 }// namespace adPredictAlgo

@@ -82,7 +82,7 @@ class LBFGSSolver : public Learner {
                        dmlc::RowBlockIter<unsigned> *dtrain)
     {
       bool stop = false;
-      float vdot = FindChangeDirection();
+      //float vdot = FindChangeDirection();
       BacktrackLineSearch();
       UpdateHistInfo();
       if(old_objval - new_objval < lbfgs_stop_tol * init_objval)
@@ -92,7 +92,7 @@ class LBFGSSolver : public Learner {
 
     float FindChangeDirection()
     {
-
+      return 0;
     }
 
     void BacktrackLineSearch()
