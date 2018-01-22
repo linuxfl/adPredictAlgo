@@ -3,15 +3,19 @@
 
 namespace adPredictAlgo {
 
-class SGD : public Learner {
+class AdaGrad : public Learner {
   public:
-    SGD() {
+    AdaGrad() {
       num_fea = 0;
       epochs = 1;
       alpha = 0.1;
+      beta = 1;
+      sqr_grad = NULL;
     }
 
-    virtual ~SGD() {
+    virtual ~AdaGrad() {
+      if(sqr_grad != nullptr)
+        delete [] sqr_grad;
     }
 
     void Configure(const std::vector<std::pair<std::string,std::string> > &cfg) 
@@ -22,10 +26,13 @@ class SGD : public Learner {
       if(cfg_.count("num_fea"))
         num_fea = static_cast<uint32_t>(atoi(cfg_["num_fea"].c_str()));
       if(cfg_.count("alpha"))
-        alpha = static_cast<float>(atof(cfg_["alpha"].c_str()));
-        std::cout << alpha << std::endl;
+        alpha = static_cast<float>(atof(cfg_["alpha"].c_str()));      
+      if(cfg_.count("beta"))
+        beta = static_cast<float>(atof(cfg_["beta"].c_str()));
       if(cfg_.count("epochs"))
         epochs = static_cast<int>(atoi(cfg_["epochs"].c_str()));
+
+      Init();
     }
 
     void Train(float *primal,
@@ -34,7 +41,9 @@ class SGD : public Learner {
                float rho,
                dmlc::RowBlockIter<unsigned> *dtrain)
     {
-      memset(primal,0.1,sizeof(float)*num_fea);
+      memset(primal,0.f,sizeof(float)*num_fea);
+      memset(sqr_grad,0.f,sizeof(float)*num_fea);
+
       for(int iter = 0; iter < epochs;iter++){
         dtrain->BeforeFirst();
         while(dtrain->Next())  {
@@ -48,8 +57,9 @@ class SGD : public Learner {
             for(unsigned j = 0;j < v.length;j++) {
               unsigned fea_index = v.index[j]; 
               grad_tmp += dual[fea_index] + rho * (primal[fea_index] - cons[fea_index]);
-              primal[fea_index] -= alpha * grad_tmp;
-//              std::cout << primal[fea_index] << " " << alpha * grad_tmp << std::endl;
+              sqr_grad[fea_index] += grad_tmp * grad_tmp;
+              float lr = alpha / sqrt(sqr_grad[fea_index] + beta);
+              primal[fea_index] -= lr * grad_tmp;
               grad_tmp = grad;
             }
           }
@@ -70,8 +80,15 @@ class SGD : public Learner {
       return 1.0f / (1.0f + std::exp(-inx));
     }
 
+    inline void Init()
+    {
+      sqr_grad = new float[num_fea];
+    }
+
   private:
     float alpha;
+    float beta;
+    float *sqr_grad;
     uint32_t num_fea;
     int epochs;
 
