@@ -11,8 +11,8 @@
 
 namespace adPredictAlgo {
 
-const double RELTOL = 1e-3;
-const double ABSTOL = 1e-3;
+const double RELTOL = 1e-4;
+const double ABSTOL = 1e-5;
 
 class ADMM {
   public:
