@@ -1,6 +1,6 @@
 Ftrl for Factorization Machines and Field-aware Factorization Machines
 ====
-* input format: LibSVM
+* input format:lable fea_id:field_id ... [field_id start from 1]
 * run command:./bin/adpa_ffm dtrain dtest param=val
 * example:./bin/adpa_ffm dtrain dtest num_fea=100000 num_field=23 ffm_dim=3
 
