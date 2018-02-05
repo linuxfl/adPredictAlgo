@@ -30,7 +30,7 @@ class FTRLSolver {
 public:
   FTRLSolver(char *dtrain):train_data(dtrain)
   {
-    alpha = 0.1;
+    alpha = 0.01;
     beta = 1.;
     l1_reg = 0;
     l2_reg = 0.1;
@@ -41,6 +41,7 @@ public:
     pred_out = "pred.txt";
     is_incre = 0;
     save_aux = 1;
+    only_weight = 0;
   }
 
   virtual ~FTRLSolver(){ model.clear(); }
@@ -55,8 +56,8 @@ public:
   virtual void LoadModel();
 
   inline void Run(){
-    std::cout << "alpha=" << alpha << ", beta=" << beta << ", l1_reg=" << l1_reg
-              << ", l2_reg=" << l2_reg << ", is_incre=" << is_incre << ", save_aux=" << save_aux << std::endl;
+    std::cout << "FTRLSovler Start," << " alpha=" << alpha << ", beta=" << beta << ", l1_reg=" << l1_reg << ", only_weight="
+              << only_weight << ", l2_reg=" << l2_reg << ", is_incre=" << is_incre << ", save_aux=" << save_aux << std::endl;
 
     if(task == "train"){
       //if incre model, load model first
@@ -96,6 +97,7 @@ private:
 
   int is_incre;
   int save_aux;
+  int only_weight;
 
 private:
   bool ParseLine(std::string& line, fea::instance& ins)

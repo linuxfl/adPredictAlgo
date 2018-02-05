@@ -26,6 +26,8 @@ void FTRLSolver::SetParam(const char *name, const char *val)
     is_incre = static_cast<int>(atoi(val));
   if (!strcmp(name,"save_aux"))
     save_aux = static_cast<int>(atoi(val));
+  if (!strcmp(name,"only_weight"))
+    only_weight = static_cast<int>(atoi(val));
 }
 
 void FTRLSolver::TaskTrain()
@@ -43,7 +45,7 @@ void FTRLSolver::TaskTrain()
     TrainIns(ins);
     cnt++;
     if(cnt % 100000 == 0)
-      std::cout << "train instance:" << cnt << " ,nnw:" << model.size() << std::endl;
+      std::cout << "train instance:" << cnt << ", num_key:" << model.size() << std::endl;
   }
   is.close();
 }
@@ -118,6 +120,11 @@ void FTRLSolver::SaveModel() const {
   std::ofstream os(model_out.c_str());
   assert(os.fail() == false);
 
+  os << alpha << std::endl;
+  os << beta << std::endl;
+  os << l1_reg << std::endl;
+  os << l2_reg << std::endl;
+
   for(const auto &it : model)
   {
     if(save_aux){
@@ -126,8 +133,11 @@ void FTRLSolver::SaveModel() const {
          << (it.second).z << " " 
          << (it.second).n << std::endl;
     }else{
-      os << it.first << " "
-         << (it.second).w << std::endl;
+      //when don't save auxiliary parameter
+      //we don't store the zero weight
+      if((it.second).w != 0.0)
+        os << it.first << " "
+           << (it.second).w << std::endl;
     }
   }
   os.close();
@@ -138,20 +148,51 @@ void FTRLSolver::LoadModel() {
   assert(is.fail() == false);
   std::cout << "Load Model now..." << std::endl;
 
+  float alpha_old;
+  float beta_old;
+  float l1_reg_old;
+  float l2_reg_old;
+
+  is >> alpha_old;
+  is >> beta_old;
+  is >> l1_reg_old;
+  is >> l2_reg_old;
+
   uint32_t fid;
   ftrlentry e;
-  if(save_aux){
-    while(!is.eof()){
+  //check the ftrl parameter is equal to old when online training
+  if(task == "train" && is_incre == 1){
+    if(alpha_old != alpha || beta_old != beta
+        || l1_reg_old != l1_reg || l2_reg_old != l2_reg)
+    {
+      std::cerr << "the parameter is not equal to old!!!" << std::endl;
+      exit(1);
+    }
+
+    while(!is.eof()) {
       is >> fid >> e.w >> e.z >> e.n;
       model[fid] = e;
     }
   }else{
-    while(!is.eof()){
-      is >> fid >> e.w;
-      if(e.w != 0.0)
-        model[fid] = e;
+    if(only_weight){
+      //when task is predict only read
+      //the non-zero weigth to memory
+      while(!is.eof()) {
+        is >> fid >> e.w;
+        if(e.w != 0.0)
+        {
+          model[fid] = e;
+        }
+      }
+    }else{
+      float tmp;
+      while(!is.eof()){
+        is >> fid >> e.w >> tmp >> tmp;
+        if(e.w != 0.0)
+          model[fid] = e;
+      }
     }
-  } 
+  }
 
   is.close();
 }
