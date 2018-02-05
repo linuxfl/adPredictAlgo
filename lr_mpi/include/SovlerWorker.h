@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <mpi.h>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -63,8 +63,8 @@ class SovlerWorker {
     bool UpdateOneIter()
     {
       std::vector<uint32_t> send_keys;
-      std::map<uint32_t ,float> keys_weight;
-      std::map<uint32_t ,float> grad;
+      std::unordered_map<uint32_t ,float> keys_weight;
+      std::unordered_map<uint32_t ,float> grad;
       
       data.clear();
       bool stop = dl_.LoadDataFromFile(data);
@@ -100,7 +100,7 @@ class SovlerWorker {
       MPI_Send(&s_keys[0], keys_n, MPI_INT, 0, 100, MPI_COMM_WORLD);
     }
 
-    inline void RecvWeightFromServer(std::map<uint32_t,float> &keys_weight,
+    inline void RecvWeightFromServer(std::unordered_map<uint32_t,float> &keys_weight,
                                       const std::vector<uint32_t> &s_keys)
     {
       MPI_Status status;
@@ -113,7 +113,7 @@ class SovlerWorker {
       }
     }
 
-    inline void SendGradToServer(std::map<uint32_t ,float> grad,
+    inline void SendGradToServer(std::unordered_map<uint32_t ,float> grad,
                                  std::vector<uint32_t> s_keys)
     {
       std::vector<float> g;
@@ -124,8 +124,8 @@ class SovlerWorker {
       MPI_Send(&g[0], g.size(), MPI_INT, 0, 102, MPI_COMM_WORLD);
     }
 
-    virtual void CalGrad(std::map<uint32_t,float> &keys_weight,
-                         std::map<uint32_t ,float> &grad)
+    virtual void CalGrad(std::unordered_map<uint32_t,float> &keys_weight,
+                         std::unordered_map<uint32_t ,float> &grad)
     {
       grad.clear();
       for(size_t i = 0;i < data.size();++i)
@@ -142,7 +142,7 @@ class SovlerWorker {
       }
     }
 
-    virtual float PredIns(std::map<uint32_t ,float> &keys_weight,
+    virtual float PredIns(std::unordered_map<uint32_t ,float> &keys_weight,
                           const Instance &ins)
     {
       float inner = 0.0;
@@ -151,7 +151,7 @@ class SovlerWorker {
         uint32_t fea_index = ins.fea_vec[i];
         if(!keys_weight.count(fea_index))
         {
-          std::cout <<"map don't hit " <<fea_index << " ";
+          std::cout <<"unordered_map don't hit " <<fea_index << " ";
         }
         inner += keys_weight[fea_index];
       }

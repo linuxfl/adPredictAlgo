@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <mpi.h>
-#include <map>
+#include <unordered_map>
 #include <vector>
 #include <string>
 #include <cassert>
@@ -149,7 +149,7 @@ class SovlerServer {
     void UpdateModel(const std::vector<std::vector<float> > &grad,
                      const std::vector<std::vector<uint32_t> > &keys)
     {
-      std::map<uint32_t,float> g;
+      std::unordered_map<uint32_t,float> g;
       for(int i = 1; i < num_procs;i++)
       {
         for(size_t j = 0;j < keys[i-1].size();++j)
@@ -161,7 +161,7 @@ class SovlerServer {
             g[fea_index] += grad[i-1][j];
         }
       }
-      std::map<uint32_t,float>::iterator iter ;
+      std::unordered_map<uint32_t,float>::iterator iter ;
       for(iter = g.begin() ; iter != g.end();iter++)
       {
         uint32_t fea_index = iter->first;
