@@ -42,7 +42,7 @@ void FTRLSolver::TaskTrain()
   {
     ins.reset();
     ParseLine(line, ins);
-    TrainIns(ins);
+    TrainIns_(ins);
     cnt++;
     if(cnt % 100000 == 0)
       std::cout << "train instance:" << cnt << ", num_key:" << model.size() << std::endl;
@@ -113,6 +113,46 @@ void FTRLSolver::TrainIns(const fea::instance &ins)
     e.z += g - theta * e.w;
     e.n += g * g;
     model[fid] = e;
+  }
+}
+
+void FTRLSolver::TrainIns_(const fea::instance &ins)
+{
+  std::vector<uint32_t> fea_vec = ins.fea_vec;
+  size_t ins_len = fea_vec.size();
+  
+  //calc grad
+  ValueType g = PredIns(ins) - ins.label;
+
+  for(size_t idx = 0;idx < ins_len;++idx)
+  {
+    uint32_t fid = fea_vec[idx];
+    ftrlentry e;
+    if(model.count(fid))
+      e = model[fid];
+ 
+    UpdateW(e, g);
+    model[fid] = e;
+  }
+}
+
+void FTRLSolver::UpdateW(ftrlentry &e, float g)
+{
+  float w = e.w;
+  g += l2_reg * e.w;
+
+  float cg = e.n;
+  float cg_new = sqrt(cg * cg + g * g);
+  e.n = cg_new;
+
+  e.z -= g - (cg_new - cg) / alpha * w;
+
+  float z = e.z;
+  if(z <= l1_reg && z > -l1_reg){
+    e.w = 0.;
+  }else{
+    float eta = (beta + cg_new) / alpha;
+    e.w = (z > 0 ? z - l1_reg : z + l1_reg) / eta;
   }
 }
 

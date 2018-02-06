@@ -50,6 +50,8 @@ public:
   //task train
   virtual void TaskTrain();
   virtual void TrainIns(const fea::instance &ins);
+  virtual void TrainIns_(const fea::instance &ins);
+  virtual void UpdateW(ftrlentry &e, float g);
   //task predict
   virtual void TaskPred();
   virtual void SaveModel() const;
