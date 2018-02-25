@@ -268,12 +268,12 @@ class LBFGSSolver : public Learner {
       while(dtrain->Next()) {
         const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
         grad_.resize(batch.size,0.0f);
-        #pragma omp parallel for schedule(static)
+        //#pragma omp parallel for schedule(static)
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
           grad_[i] = PredToGrad(old_w, v);
         }
-        #pragma omp parallel
+        //#pragma omp parallel
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
           for(size_t j = 0; j < v.length;j++) {
@@ -281,8 +281,7 @@ class LBFGSSolver : public Learner {
           }
         }
       }
-      for(size_t i = 0;i < num_fea;++i)
-        grad[i] += d[i] + rho * (old_w[i] - c[i]);
+      grad += d + rho * (old_w - c);
     }
 
     float Eval(const Eigen::VectorXf & old_w,
@@ -291,11 +290,12 @@ class LBFGSSolver : public Learner {
                const float &rho,
                dmlc::RowBlockIter<unsigned> *dtrain)
     {
+      if(nthread != 0) omp_set_num_threads(nthread);
       float sum_val = 0.0f;
       dtrain->BeforeFirst();
       while(dtrain->Next()) {
         const dmlc::RowBlock<unsigned> &batch = dtrain->Value();
-        #pragma omp parallel for schedule(static) reduction(+:sum_val)
+        //#pragma omp parallel for schedule(static) reduction(+:sum_val)
         for(size_t i = 0;i < batch.size;i++) {
           float fv
                 = CalLoss(old_w, batch[i]);
