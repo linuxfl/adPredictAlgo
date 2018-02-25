@@ -48,42 +48,38 @@ class SovlerWorker {
       LOG(INFO) << "SovlerWorker " << rank << " Start"<< ", num_fea=" << num_fea 
                 << ", minibatch_size=" << minibatch_size; 
       dl_.Init();
-      data.clear();
-      dl_.LoadAllDataFromFile(data);
-      
-      //reset minibatch size
 
       int iter = 0;
-      int begin = 0;
-      int len = data.size();
       while(iter < num_epochs){
-        if(begin > len)
-          begin = 0;
-        UpdateOneIter(begin);
-        begin += minibatch_size;
+        if(!this->UpdateOneIter()){
+          dl_.reset();
+        }
         iter++;
+        //if(iter % 1000 == 0 && rank == 1)
+         // LOG(INFO) << "train instance=" << iter * train_size;
       }
     }
 
-    void UpdateOneIter(const int begin)
+    bool UpdateOneIter()
     {
       std::vector<uint32_t> send_keys;
-      std::unordered_map<uint32_t, float> keys_weight;
-      std::unordered_map<uint32_t, float> grad;
-      std::vector<Instance> block;
+      std::unordered_map<uint32_t ,float> keys_weight;
+      std::unordered_map<uint32_t ,float> grad;
+      
+      data.clear();
+      bool stop = dl_.LoadDataFromFile(data);
 
-      for(size_t i = begin;i < begin + minibatch_size;++i)
+      for(size_t i = 0;i < data.size();++i)
       {
-        
-        if(i > data.size())
-          break;
-
         Instance ins = data[i];
         for(size_t k = 0;k < ins.fea_vec.size();++k)
           send_keys.push_back(ins.fea_vec[k]);
-        block.push_back(ins);
       }
-      
+      train_size = data.size();
+      all_train_size += train_size; 
+      if(rank == 1)
+        LOG(INFO) << "Train Instance=" << all_train_size;
+
       sort(send_keys.begin(),send_keys.end());
       send_keys.erase(unique(send_keys.begin(), send_keys.end()), send_keys.end());
 
@@ -92,8 +88,9 @@ class SovlerWorker {
       //recv the weight to update
       RecvWeightFromServer(keys_weight, send_keys);
       //calc the gradient
-      CalGrad(keys_weight, grad, block);
+      CalGrad(keys_weight,grad);
       SendGradToServer(grad, send_keys);
+      return stop;
     }
 
     inline void SendKeysToServer(std::vector<uint32_t> &s_keys)
@@ -104,7 +101,7 @@ class SovlerWorker {
     }
 
     inline void RecvWeightFromServer(std::unordered_map<uint32_t,float> &keys_weight,
-                                     const std::vector<uint32_t> &s_keys)
+                                      const std::vector<uint32_t> &s_keys)
     {
       MPI_Status status;
       keys_weight.clear();
@@ -128,21 +125,19 @@ class SovlerWorker {
     }
 
     virtual void CalGrad(std::unordered_map<uint32_t,float> &keys_weight,
-                         std::unordered_map<uint32_t ,float> &grad,
-                         const std::vector<Instance> & block)
+                         std::unordered_map<uint32_t ,float> &grad)
     {
       grad.clear();
-      int len = block.size();
-      for(size_t i = 0;i < len;++i)
+      for(size_t i = 0;i < data.size();++i)
       {
-        Instance ins = block[i];
+        Instance ins = data[i];
         float g = PredIns(keys_weight,ins) - ins.label;
         for(size_t j = 0;j < ins.fea_vec.size();++j)
         {
           if(grad.count(ins.fea_vec[j]))
-            grad[ins.fea_vec[j]] += g / len;
+            grad[ins.fea_vec[j]] += g / train_size;
           else
-            grad[ins.fea_vec[j]] = g / len;
+            grad[ins.fea_vec[j]] = g / train_size;
         }
       }
     }
@@ -156,10 +151,9 @@ class SovlerWorker {
         uint32_t fea_index = ins.fea_vec[i];
         if(!keys_weight.count(fea_index))
         {
-          std::cout <<"unordered_map don't hit " << fea_index << " " << std::endl;
-        }else{
-          inner += keys_weight[fea_index];
+          std::cout <<"unordered_map don't hit " <<fea_index << " ";
         }
+        inner += keys_weight[fea_index];
       }
       return Sigmoid(inner);
     }

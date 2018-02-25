@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../include/io.h"
+#include "../include/dataloader.h"
 #include "/home/work/fangling/adPredictalgo/common/include/elapse.h"
 
 int main(int argc,char **argv)
@@ -15,7 +15,7 @@ int main(int argc,char **argv)
   adPredictAlgo::Timer t;
 
   t.Start();
-  data_loader.LoadDataFromFile(data);
+  data_loader.LoadAllDataFromFile(data);
 //  data_loader.LoadData(data);
   t.Stop();
   std::cout << t.ElapsedSeconds()<< std::endl;

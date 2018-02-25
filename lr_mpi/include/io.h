@@ -9,9 +9,9 @@
 #include <string>
 #include <map>
 #include <cassert>
-#include <sstream>
 
 #include "data.h"
+#include "str_util.h"
 
 namespace adPredictAlgo {
 
@@ -23,7 +23,6 @@ class DataLoader {
 
       minibatch_size = 1;
       train_data = "NULL";
-      rank = 0;
     }
 
     ~DataLoader() {
@@ -34,7 +33,6 @@ class DataLoader {
     void Init() {
       assert(train_data != "NULL");
 
-      train_data += std::to_string(rank);
       if((fp = fopen(train_data.c_str(),"r")) == NULL){
         std::cout << "open train data error!" << std::endl;
         exit(1);
@@ -46,12 +44,6 @@ class DataLoader {
 
       buf = new char[buff_size];
       memset(buf,0,buff_size);
-    }
-    
-    void reset()
-    {
-      assert(fp != NULL);
-      fseek(fp,0,SEEK_SET);
     }
 
     void Configure(const std::vector<std::pair<std::string,std::string> > &cfg)
@@ -65,19 +57,34 @@ class DataLoader {
         train_data = cfg_["train_data"];
       if(cfg_.count("minibatch_size"))
         minibatch_size = static_cast<unsigned int>(atoi(cfg_["minibatch_size"].c_str()));
-      if(cfg_.count("rank"))
-        rank = static_cast<int>(atoi(cfg_["rank"].c_str()));
+
       this->Init();
     }
 
-    void SetParam(const char *name,const char *val)
+    void LoadData(DataVec &data)
     {
-      if(!strcmp(name,"train_data"))
-        train_data = val;
-      if(!strcmp(name,"minibatch_size"))
-        minibatch_size = static_cast<unsigned int>(atoi(val));
-      if(!strcmp(name,"rank"))
-        rank = static_cast<int>(atoi(val));
+      std::ifstream is(train_data.c_str());
+      std::string line;
+      Instance ins;
+      while(getline(is,line))
+      {
+        ins.clear();
+        std::vector<std::string> fea_vec;
+        util::str_util::split(line," ",fea_vec);
+        ins.label = static_cast<int>(atoi(fea_vec[0].c_str()));
+
+        for(size_t i = 1;i < fea_vec.size();i++) {
+          std::vector<std::string> kvs;
+          ffm_node _node;
+          util::str_util::split(fea_vec[i],":",kvs);
+
+          _node.field_index = static_cast<uint32_t>(atoi(kvs[0].c_str()));
+          _node.fea_index = static_cast<uint32_t>(atoi(kvs[1].c_str()));
+
+          ins.fea_vec.push_back(_node);
+        }   
+        data.push_back(ins);
+      }
     }
 
     void ReadBuf()
@@ -131,36 +138,6 @@ class DataLoader {
       return !feof(fp);
     }
 
-    inline void Split(std::string & line,
-                 std::vector<std::string> & fea_vec)
-    {
-      std::stringstream ss;
-      ss << line;
-      while(ss >> line){
-        fea_vec.push_back(line);
-      }
-    }
-
-    void LoadAllDataFromFile(DataVec & data)
-    {
-      std::ifstream is(train_data.c_str());
-      std::string line;
-      std::vector<std::string> fea_vec;
-      while(getline(is, line)){
-        fea_vec.clear();
-        Split(line, fea_vec);
-        Instance ins;
-        ins.label = static_cast<int>(atoi(fea_vec[0].c_str()));
-        for(unsigned int idx = 1;idx < fea_vec.size();++idx)
-        {
-          uint32_t fid = static_cast<uint32_t>(atoi(fea_vec[idx].c_str()));
-          ins.fea_vec.push_back(fid);
-        }
-
-        data.push_back(ins);
-      }
-    }
-
   private:
     //train data
     std::string train_data;
@@ -174,14 +151,15 @@ class DataLoader {
     size_t buff_size;
     //conf
     std::map<std::string,std::string> cfg_;
-    //rank
-    int rank;
+    
   private:
     inline void ParseLine(char *buf_,Instance &ins)
     {
       ins.clear();
+      ffm_node node_;
       char *p = buf_;
       char *q;
+      uint32_t field_index;
       uint32_t fea_index;
 
       q = p;
@@ -199,16 +177,23 @@ class DataLoader {
       while(*p != '\0')
       {
         int k = 0;
-        while(*q != ' ' && *q != '\0'){
+        while(*q != ' ' && *q != ':' && *q != '\0'){
           c[k++] = *q++;
         }
 
         c[k] = '\0';
         
-        //store fea index
+        //store field index
+        if(*q == ':')
+          field_index = static_cast<uint32_t>(std::atoi(c));
+
+        //end of the ffm kvs,store to ffm node
         if(*q == ' ' || *q == '\0'){
           fea_index = static_cast<uint32_t>(std::atoi(c));
-          ins.fea_vec.push_back(fea_index);
+        
+          node_.field_index = field_index;
+          node_.fea_index = fea_index;
+          ins.fea_vec.push_back(node_);
         }
 
         if(*q != '\0')

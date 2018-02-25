@@ -85,6 +85,8 @@ class SovlerServer {
       while(iter < num_epochs){
         this->UpdateOneIter();
         iter++;
+        if(iter % 1000 == 0)
+          TaskPred();
       }
       TaskPred();
       DumpModel();
