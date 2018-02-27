@@ -45,8 +45,8 @@ class SovlerWorker {
     }
     void Start()
     {
-      LOG(INFO) << "SovlerWorker " << rank << " Start"<< ", num_fea=" << num_fea 
-                << ", minibatch_size=" << minibatch_size; 
+      //LOG(INFO) << "SovlerWorker " << rank << " Start"<< ", num_fea=" << num_fea 
+      //          << ", minibatch_size=" << minibatch_size; 
       dl_.Init();
       data.clear();
       dl_.LoadAllDataFromFile(data);
@@ -132,7 +132,7 @@ class SovlerWorker {
                          const std::vector<Instance> & block)
     {
       grad.clear();
-      int len = block.size();
+      size_t len = block.size();
       for(size_t i = 0;i < len;++i)
       {
         Instance ins = block[i];

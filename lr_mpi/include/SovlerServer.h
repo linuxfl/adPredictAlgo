@@ -46,14 +46,10 @@ class SovlerServer {
       memset(n,0.0,num_fea);
       memset(z,0.0,num_fea);
 
-      LOG(INFO) << "1 SolverServer Start ," << num_procs - 1 << " SolverWorkers Start";
+      LOG(INFO) << "1 SolverServer Start," << num_procs - 1 << " SolverWorkers Start";
 
-      dtest = dmlc::RowBlockIter<unsigned>::Create(
-                          test_data.c_str(),
-                          0,
-                          1,
-                          "libsvm"
-                          );
+      dtest = dmlc::RowBlockIter<unsigned>::Create(test_data.c_str(), 0, 1, "libsvm");
+
       lr.Init();
     }
 
@@ -75,6 +71,8 @@ class SovlerServer {
         num_epochs = static_cast<int>(atoi(val));
       if(!strcmp(name,"test_data"))
         test_data = val;
+      if(!strcmp(name,"minibatch_size"))
+        minibatch_size = static_cast<size_t>(atoi(val));
 
       lr.SetParam(name,val);
     }
@@ -85,7 +83,7 @@ class SovlerServer {
       while(iter < num_epochs){
         this->UpdateOneIter();
         iter++;
-        if(iter % 1000 == 0)
+        if(iter * minibatch_size % 100000 == 0)
           TaskPred();
       }
       TaskPred();
@@ -263,6 +261,7 @@ class SovlerServer {
     int num_epochs;
 
     uint32_t num_fea;
+    size_t minibatch_size;
     //FFMModel ffm;
     LRModel lr;
     std::string test_data;
