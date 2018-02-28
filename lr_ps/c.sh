@@ -1,0 +1,1 @@
+g++ src/main.cc ./ps-lite/build/libps.a ps-lite/deps/lib/libzmq.a ps-lite/deps/lib/libprotobuf.a -o bin/lr_ps -Iinclude -std=c++11 -I../common/include -I./ps-lite/deps/include -I./ps-lite/include/ps -I./ps-lite/include/ -lpthread -lrt
