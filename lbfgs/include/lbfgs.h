@@ -251,14 +251,14 @@ class LBFGSSolver{
     }
 
     virtual void TaskPred(void) {
-      num_fea = std::max(num_fea,dtrain->NumCol());
-      Eigen::VectorXf weight = Eigen::VectorXf::Zero(num_fea);
-      //float *weight = new float[num_fea];
-
       std::ifstream is(model_in.c_str());
       std::ofstream os(pred_out.c_str());
       
       CHECK(is.fail() == false) << "open model file error!";
+      is >> num_fea;
+      num_fea = std::max(num_fea,dtrain->NumCol());
+      linear.SetParam("num_fea", std::to_string(num_fea).c_str());
+      Eigen::VectorXf weight = Eigen::VectorXf::Zero(num_fea);
 
       for(size_t i = 0;i < num_fea;i++)
         is >> weight[i];
@@ -290,6 +290,7 @@ class LBFGSSolver{
       std::ofstream os(model_out.c_str());
 
       CHECK(os.fail() == false) << "open model file fail";
+      os << num_fea << std::endl;
       for(size_t i = 0;i < num_fea;i++) {
         os << linear.old_weight[i] << std::endl;
       }
@@ -300,6 +301,7 @@ class LBFGSSolver{
       std::ifstream is(model_in.c_str());
 
       CHECK(is.fail() == false) << "open model file fail";
+      is >> num_fea;
       for(size_t i = 0;i < num_fea;++i)
       {
         is >> linear.old_weight[i];

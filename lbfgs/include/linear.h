@@ -60,9 +60,8 @@ struct LinearModel {
                              const dmlc::Row<unsigned> &v) const {
     float sum = 0.0;
     for(unsigned i = 0;i < v.length;i++) {
-      if(v.index[i] < num_fea) {
-        sum += w[v.index[i]];
-      }
+      assert(num_fea > v.index[i]);
+      sum += w[v.index[i]];
     }
     return sum;
   }
