@@ -158,10 +158,8 @@ public:
         uint32_t fea_y = v.index[j];
         uint32_t real_fea_y = n_ + fea_y * d_;
 
-        if(i!=j){
-          for(size_t k = 0;k < d_;++k) {
-            inner += fm.w_i(real_fea_x + k) * fm.w_i(real_fea_y + k);
-          }
+        for(size_t k = 0;k < d_;++k) {
+          inner += fm.w_i(real_fea_x + k) * fm.w_i(real_fea_y + k);
         }
       }
     }
@@ -232,9 +230,22 @@ public:
           fm.w_i(map_fid) = 0.0;
         }else{
           fm.w_i(map_fid) = (Sign(z_fm[real_fid]) * l1_fm_reg - z_fm[real_fid]) / \
-                          ((beta_fm + std::sqrt(n_fm[real_fid])) / alpha_fm + l2_fm_reg);
+              ((beta_fm + std::sqrt(n_fm[real_fid])) / alpha_fm + l2_fm_reg);
         }
-        sum += fm.w_i(map_fid);
+      }
+    }
+
+    for(size_t i = 0;i < ins_len;++i){
+      uint32_t fea_x = fea_vec[i];
+      for(size_t j = i+1;j < ins_len;++j){
+        uint32_t fea_y = fea_vec[j];
+
+        uint32_t real_fid_x = fea_x * d_ + n_;
+        uint32_t real_fid_y = fea_y * d_ + n_;
+
+        for(int k = 0; k < d_;k++){
+          sum += fm.w_i(real_fid_x + k) * fm.w_i(real_fid_y + k);
+        }
       }
     }
 
@@ -299,17 +310,13 @@ public:
 
     for(size_t i = 0;i < ins_len;++i) {
       uint32_t fea_x = fea_vec[i];
-      for(size_t j = 0;j < ins_len;++j) {
-        if(i != j){
-          for(size_t k = 0;k < fm.param.d;++k){
-            uint32_t real_fid = fea_x * d_ + k;
-            uint32_t map_fid = real_fid + n_;
-            ValueType g_fm = grad * sum_fm[map_fid];
-            ValueType theta = (std::sqrt(n_fm[real_fid] + g_fm * g_fm) - std::sqrt(n_fm[real_fid])) / alpha_fm;
-            z_fm[real_fid] += g_fm - theta * fm.w_i(map_fid);
-            n_fm[real_fid] += g_fm * g_fm;
-          }
-        }
+      for(size_t k = 0;k < fm.param.d;++k){
+        uint32_t real_fid = fea_x * d_ + k;
+        uint32_t map_fid = real_fid + n_;
+        ValueType g_fm = grad * sum_fm[map_fid];
+        ValueType theta = (std::sqrt(n_fm[real_fid] + g_fm * g_fm) - std::sqrt(n_fm[real_fid])) / alpha_fm;
+        z_fm[real_fid] += g_fm - theta * fm.w_i(map_fid);
+        n_fm[real_fid] += g_fm * g_fm;
       }
     }
   }
