@@ -17,11 +17,11 @@
 
 namespace adPredictAlgo {
 
-class FTRL {
+class FTRLSolver {
 public:
-  FTRL(char *dtrain,dmlc::RowBlockIter<unsigned> *dtest)
-    :dtrain(dtrain),dtest(dtest),n(nullptr),
-    z(nullptr),n_fm(nullptr),z_fm(nullptr)
+  FTRLSolver(char *dtrain,dmlc::RowBlockIter<unsigned> *dtest)
+      :dtrain(dtrain), dtest(dtest), n(nullptr),
+      z(nullptr), n_fm(nullptr), z_fm(nullptr)
    {
     alpha = 0.01f;
     beta = 1.0f;
@@ -38,7 +38,7 @@ public:
     num_epochs = 1;
   }
 
-  virtual ~FTRL() 
+  virtual ~FTRLSolver()
   {
     if(z)
       delete [] z;
@@ -141,7 +141,7 @@ public:
 
     // 23:123444 v.index[j]:v.get_value(j) 
   inline ValueType PredIns(const dmlc::Row<unsigned> &v) {
-    
+
     ValueType inner = fm.w_i(fm_model_size - 1);
     for(unsigned i = 0;i < v.length;++i)
     {
@@ -196,11 +196,13 @@ public:
     }
   }
 
-  virtual ValueType PredictRaw(Instance &ins)
+  virtual ValueType PredictRaw(Instance &ins, std::vector<ValueType> &sum_vf_g)
   {
     size_t ins_len = ins.fea_vec.size();
     std::vector<uint32_t> &fea_vec = ins.fea_vec;
     ValueType sum = 0.0;
+    sum_vf_g.resize(d_, 0);
+
     //w_0 update
     fm.w_i(fm_model_size - 1) = ( - z[n_]) / \
                 ((beta + std::sqrt(n[n_])) / alpha);
@@ -232,6 +234,8 @@ public:
           fm.w_i(map_fid) = (Sign(z_fm[real_fid]) * l1_fm_reg - z_fm[real_fid]) / \
               ((beta_fm + std::sqrt(n_fm[real_fid])) / alpha_fm + l2_fm_reg);
         }
+
+        sum_vf_g[k] += fm.w_i(map_fid);
       }
     }
 
@@ -243,7 +247,7 @@ public:
         uint32_t real_fid_x = fea_x * d_ + n_;
         uint32_t real_fid_y = fea_y * d_ + n_;
 
-        for(int k = 0; k < d_;k++){
+        for(size_t k = 0; k < d_;k++){
           sum += fm.w_i(real_fid_x + k) * fm.w_i(real_fid_y + k);
         }
       }
@@ -268,7 +272,7 @@ public:
     return 1. / (1. + std::exp(-std::max(std::min(inx,tuc_val),-tuc_val)));
   }
 
-  virtual void AuxUpdate(const Instance &ins,ValueType grad)
+  virtual void AuxUpdate(const Instance &ins, ValueType grad, std::vector<ValueType> &sum_vf_g)
   {
     size_t ins_len = ins.fea_vec.size();
     std::vector<uint32_t> fea_vec = ins.fea_vec;
@@ -284,36 +288,13 @@ public:
       z[fid] += grad - theta * fm.w_i(fid);
       n[fid] += grad * grad;
     }
-    std::unordered_map<uint32_t, ValueType> sum_fm;
-
-    for(size_t i = 0;i < ins_len;++i)
-    {
-      uint32_t fea_x = fea_vec[i];
-      uint32_t real_fea_x = fea_x * d_ + n_;
-
-      for(size_t j = 0; j < ins_len;++j)
-      {
-        if(i != j) {
-          uint32_t fea_y = fea_vec[j];
-          uint32_t real_fea_y = fea_y * d_ + n_;
-
-          for(size_t k = 0;k < d_;++k) {
-            uint32_t real_fid = real_fea_x + k;
-            if(sum_fm.find(real_fid) != sum_fm.end())
-              sum_fm[real_fid] += fm.w_i(real_fea_y + k);
-            else
-              sum_fm[real_fid] = fm.w_i(real_fea_y + k);
-          }
-        }
-      }
-    }
 
     for(size_t i = 0;i < ins_len;++i) {
       uint32_t fea_x = fea_vec[i];
       for(size_t k = 0;k < fm.param.d;++k){
         uint32_t real_fid = fea_x * d_ + k;
         uint32_t map_fid = real_fid + n_;
-        ValueType g_fm = grad * sum_fm[map_fid];
+        ValueType g_fm = grad * (sum_vf_g[k] - fm.w_i(map_fid)); //sum_fm[map_fid];
         ValueType theta = (std::sqrt(n_fm[real_fid] + g_fm * g_fm) - std::sqrt(n_fm[real_fid])) / alpha_fm;
         z_fm[real_fid] += g_fm - theta * fm.w_i(map_fid);
         n_fm[real_fid] += g_fm * g_fm;
@@ -323,15 +304,16 @@ public:
 
   virtual void UpdateOneIter(Instance &ins)
   {
-    ValueType p = Predict(PredictRaw(ins));
+    std::vector<ValueType> sum_vf_g(d_, 0);
+    ValueType p = Predict(PredictRaw(ins, sum_vf_g));
     int label = ins.label;
     ValueType grad = p - label;
-    AuxUpdate(ins,grad);
+    AuxUpdate(ins, grad, sum_vf_g);
   }
 
   virtual void Run()
   {
-    if(task == "train") {    
+    if(task == "train") {
       this->Init();
       this->TaskTrain();
     }else if(task == "pred") {

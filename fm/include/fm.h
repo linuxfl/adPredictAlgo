@@ -80,13 +80,39 @@ public:
 
   }
 
-  inline float& w_i(uint32_t idx)
+  inline ValueType& w_0(){
+    return *(w + fm_model_size - 1);
+  }
+
+  inline ValueType w_0() const
+  {
+    return *(w + fm_model_size - 1);
+  }
+
+  inline ValueType& w_i(uint32_t idx)
   {
     return *(w + idx);
   }
 
-  inline float w_i(uint32_t idx) const {
+  inline ValueType w_i(uint32_t idx) const {
     return *(w + idx);
+  }
+
+  inline ValueType& W(uint32_t idx)
+  {
+    return *(w + idx);
+  }
+
+  inline ValueType W(uint32_t idx) const {
+    return *(w + idx);
+  }
+
+  inline ValueType V(uint32_t idx) const{
+    return *(w + param.n + idx);
+  }
+
+  inline ValueType& V(uint32_t idx){
+    return *(w + param.n + idx);
   }
 
   virtual void DumpModel(std::ofstream &os) {
@@ -111,7 +137,7 @@ public:
   }
 
   ModelParam param;
-  ValueType *w; // ffm model parameter
+  ValueType *w; // fm model parameter
 private:
   size_t fm_model_size;
 };
