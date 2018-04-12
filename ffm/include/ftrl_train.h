@@ -36,6 +36,7 @@ public:
     model_out = "ffm_model.dat";
     model_in = "NULL";
     num_epochs = 1;
+    pred_out = "pred.txt";
   }
 
   virtual ~FTRL() 
@@ -183,7 +184,8 @@ public:
         }
       }
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
-                << ",COPC=" << Metric::CalCOPC(pair_vec);
+                << ",COPC=" << Metric::CalCOPC(pair_vec)
+                << ",LogLoss=" << Metric::CalLogLoss(pair_vec);
   }
 
   virtual void ParseLine(const std::string &line,Instance &ins)
@@ -224,7 +226,7 @@ public:
         ffm.w[fea_index] = 0.0;
       }else{
         ffm.w[fea_index] = (Sign(z[fea_index]) * l1_reg - z[fea_index]) / \
-                      ((beta + std::sqrt(n[fea_index])) / alpha + l2_reg);
+                      (l2_reg + (beta + std::sqrt(n[fea_index])) / alpha);
       }
       sum += ffm.w[fea_index];
     }
@@ -243,7 +245,7 @@ public:
               ffm.w[map_fea_index] = 0.0;
             }else{
               ffm.w[map_fea_index] = (Sign(z_ffm[real_fea_index]) * l1_ffm_reg - z_ffm[real_fea_index]) / \
-                            ((beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm + l2_ffm_reg);
+                            (l2_ffm_reg + (beta_ffm + std::sqrt(n_ffm[real_fea_index])) / alpha_ffm);
             }
           }
         }
@@ -365,6 +367,7 @@ public:
     if(task == "train") {    
       this->Init();
       this->TaskTrain();
+      this->PredOut();
     }else if(task == "pred") {
       LOG(INFO) << "Load FFM Model now...";
       this->LoadModel(model_in.c_str());
@@ -392,6 +395,14 @@ public:
     delete fi;
 //    is.close();
   }
+
+  virtual void PredOut() {
+    std::ofstream os(pred_out.c_str());
+    CHECK(os.fail() == false) << "open pred out fail.";
+    for(const auto &p : pair_vec)
+      os << p.score << std::endl;
+    os.close();
+  }
 private:
   char *dtrain;
   dmlc::RowBlockIter<unsigned> *dtest;
@@ -409,6 +420,7 @@ private:
   std::string task;
   std::string model_out;
   std::string model_in;
+  std::string pred_out;
 
   unsigned num_epochs;
   size_t ffm_model_size;

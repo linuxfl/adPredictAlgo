@@ -36,6 +36,7 @@ public:
     model_out = "fm_model.dat";
     model_in = "NULL";
     num_epochs = 1;
+    pred_out = "pred.txt";
   }
 
   virtual ~FTRLSolver()
@@ -180,7 +181,8 @@ public:
         }
       }
       LOG(INFO) << "Test AUC=" << Metric::CalAUC(pair_vec) 
-                << ",COPC=" << Metric::CalCOPC(pair_vec);
+                << ",COPC=" << Metric::CalCOPC(pair_vec)
+                << ",LogLoss=" << Metric::CalLogLoss(pair_vec);
   }
 
   virtual void ParseLine(const std::string &line, Instance &ins)
@@ -216,7 +218,7 @@ public:
         fm.w_i(fid) = 0.0;
       }else{
         fm.w_i(fid) = (Sign(z[fid]) * l1_reg - z[fid]) / \
-                      ((beta + std::sqrt(n[fid])) / alpha + l2_reg);
+                      (l2_reg + (beta + std::sqrt(n[fid])) / alpha);
       }
       sum += fm.w_i(fid);
     }
@@ -232,7 +234,7 @@ public:
           fm.w_i(map_fid) = 0.0;
         }else{
           fm.w_i(map_fid) = (Sign(z_fm[real_fid]) * l1_fm_reg - z_fm[real_fid]) / \
-              ((beta_fm + std::sqrt(n_fm[real_fid])) / alpha_fm + l2_fm_reg);
+              (l2_fm_reg + (beta_fm + std::sqrt(n_fm[real_fid])) / alpha_fm);
         }
 
         sum_vf_g[k] += fm.w_i(map_fid);
@@ -316,6 +318,7 @@ public:
     if(task == "train") {
       this->Init();
       this->TaskTrain();
+      this->PredOut();
     }else if(task == "pred") {
       LOG(INFO) << "Load FM Model now...";
       this->LoadModel(model_in.c_str());
@@ -325,14 +328,14 @@ public:
   }
 
   virtual void DumpModel(const char *model_out) {
-    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
-    fm.DumpModel(fo);
-    delete fo;
-//    std::ofstream os(model_out);
-//    CHECK(os.fail() == false) << "open model out error!";
+//    dmlc::Stream *fo = dmlc::Stream::Create(model_out,"w");
+//    fm.DumpModel(fo);
+//    delete fo;
+    std::ofstream os(model_out);
+    CHECK(os.fail() == false) << "open model out error!";
 
-//    ffm.DumpModel(os);
-//    os.close();
+    fm.DumpModel(os);
+    os.close();
   }
 
   virtual void LoadModel(const char *model_in) {
@@ -342,6 +345,15 @@ public:
     fm.LoadModel(fi);
     delete fi;
 //    is.close();
+  }
+
+  virtual void PredOut() {
+    std::ofstream os(pred_out.c_str());
+    CHECK(os.fail() == false) << "open pred out fail";
+    for(const auto &p : pair_vec) {
+      os << p.score << std::endl;
+    }
+    os.close();
   }
 private:
   char *dtrain;
@@ -361,6 +373,7 @@ private:
   std::string task;
   std::string model_out;
   std::string model_in;
+  std::string pred_out;
 
   unsigned num_epochs;
   size_t fm_model_size;

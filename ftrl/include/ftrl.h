@@ -51,6 +51,7 @@ class Ftrl
       model_out = "lr_model.dat";
       memory_in = "batch";
       pred_out = "pred.txt";
+      epoch = 1;
     }
 
      Ftrl(char *traind,dmlc::RowBlockIter<unsigned> *dtest):
@@ -69,6 +70,7 @@ class Ftrl
       memory_in = "stream";
       pred_out = "pred.txt";
       dtrain = nullptr;
+      epoch = 1;
     }
 
     virtual ~Ftrl() {
@@ -107,6 +109,8 @@ class Ftrl
         base_score = static_cast<float>(atof(val));
       if (!strcmp(name,"pred_out"))
         pred_out = val;
+      if (!strcmp(name,"epoch")) 
+        epoch = static_cast<int>(atoi(val));
     }
 
     inline void Run()
@@ -230,21 +234,25 @@ class Ftrl
     void TrainOnStream() {
       unsigned count = 0;
       instance ins;
-      std::ifstream train_stream(traind);
-      CHECK(train_stream.fail() == false)
-            << "open the train data file error!";
       std::string line;
-      while(getline(train_stream,line)) {
-        ins.fea_vec.clear();
-        ParseLine(line,ins);
-        TrainIns(ins);
-        count++;
-        if (count % 100000 == 0) {
-          TaskPred();
+      for(int e = 0;e < epoch;++e) {
+        count = 0;
+        std::ifstream train_stream(traind);
+        CHECK(train_stream.fail() == false)
+            << "open the train data file error!";
+
+        while(getline(train_stream,line)) {
+          ins.fea_vec.clear();
+          ParseLine(line,ins);
+          TrainIns(ins);
+          count++;
+          if (count % 100000 == 0) {
+            TaskPred();
+          }
         }
+        train_stream.close();
       }
       TaskPred();
-      train_stream.close();
       PredOut();
     }
 
@@ -347,6 +355,7 @@ class Ftrl
     std::string model_out;
     std::string memory_in;
     std::string pred_out;
+    int epoch;
 };
 }
 #endif

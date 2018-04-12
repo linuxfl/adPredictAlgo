@@ -16,7 +16,7 @@ int main(int argc,char **argv)
       "libsvm"
       );  
  
-  adPredictAlgo::FTRL *ftrl = new adPredictAlgo::FTRL(argv[1],test_data);
+  adPredictAlgo::FTRLSolver *ftrl = new adPredictAlgo::FTRLSolver(argv[1],test_data);
   
   char name[256],val[256];
   for(int i = 2;i < argc;i++)
