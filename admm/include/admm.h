@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <math.h>
 
 #include "dmlc/data.h"
 #include "dmlc/io.h"

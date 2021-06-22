@@ -1,6 +1,8 @@
 #ifndef _ADPREDICTALGO_METRIC_
 #define _ADPREIDCTALGO_METRIC_
 
+#include <math.h>
+
 namespace adPredictAlgo {
 
 class Metric 
