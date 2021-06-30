@@ -67,7 +67,7 @@ class SparseLBFGSSolver : public Learner {
        {
          if(v.index[i] > num_fea)
             continue;
-         inner += w[v.index[i]];
+         inner += w[v.index[i]] * v.get_value(i);
        }
        return Sigmoid(inner);
     }

@@ -66,12 +66,19 @@ class LBFGSSolver : public Learner {
                   << ",lbfgs_stop_tol=" << lbfgs_stop_tol << ",max_lbfgs_iter=" << max_lbfgs_iter
                   << ",max_linesearch_iter=" << max_linesearch_iter << ",nthread=" << nthread << ",debug=" << debug;
     }
-    
+  
     float PredIns(const dmlc::Row<unsigned> &v,
                   const float *w){
-      return 0.0;
+       float inner = 0.0;
+       for(unsigned int i = 0; i < v.length;++i)
+       {
+         if(v.index[i] > num_fea)
+            continue;
+         inner += w[v.index[i]] * v.get_value(i);
+       }
+       return Sigmoid(inner);
     }
-
+	
     void Train(float *primal,
                float *dual,
                float *cons,
@@ -312,30 +319,17 @@ class LBFGSSolver : public Learner {
       return 1. / (1. + exp(-inx));
     }
 
-    inline float PredIns(const Eigen::VectorXf & old_w,
-                         const dmlc::Row<unsigned> &v)
-    {
-       float inner = 0.0;
-       for(unsigned int i = 0; i < v.length;++i)
-       {
-         if(v.index[i] > num_fea)
-            continue;
-         inner += old_w[v.index[i]];
-       }
-       return Sigmoid(inner);
-    }
-
     inline float PredToGrad(const Eigen::VectorXf & old_w,
                             const dmlc::Row<unsigned> &v)
     {
-       return PredIns(old_w, v) - v.get_label();
+       return PredIns(v, old_w) - v.get_label();
     }
 
     inline float CalLoss(const Eigen::VectorXf & old_w,
                          const dmlc::Row<unsigned> &v)
     {
        float nlogprob = 0.;
-       float pred = PredIns(old_w, v);
+       float pred = PredIns(v, old_w);
 
        if(int(v.get_label()) == 0)
        {

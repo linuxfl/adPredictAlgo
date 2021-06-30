@@ -71,7 +71,7 @@ class AdaGrad : public Learner {
                          const float *w) {
       float inner = 0.0f;
       for(unsigned i = 0;i < v.length;i++) {
-        inner += w[v.index[i]];
+        inner += w[v.index[i]] * v.get_value(i);
       }
       return Sigmoid(inner);
     }
