@@ -319,7 +319,19 @@ class LBFGSSolver : public Learner {
       return 1. / (1. + exp(-inx));
     }
 
-    inline float PredToGrad(const Eigen::VectorXf & old_w,
+	float PredIns(const dmlc::Row<unsigned> &v,
+                  const Eigen::VectorXf &old_w){
+       float inner = 0.0;
+       for(unsigned int i = 0; i < v.length;++i)
+       {
+         if(v.index[i] > num_fea)
+            continue;
+         inner += old_w[v.index[i]] * v.get_value(i);
+       }
+       return Sigmoid(inner);
+    }
+	
+    inline float PredToGrad(const Eigen::VectorXf &old_w,
                             const dmlc::Row<unsigned> &v)
     {
        return PredIns(v, old_w) - v.get_label();
