@@ -72,7 +72,7 @@ class FTRL : public Learner {
               float w_val = primal[fea_index];
               float n_val = n[fea_index];
 
-              grad_tmp = grad_tmp * v.get_value(i) + dual[fea_index] \
+              grad_tmp = grad_tmp * v.get_value(j) + dual[fea_index] \
                             + rho * (primal[fea_index] - cons[fea_index]);
 
               float theta = (std::sqrt(n_val + grad_tmp * grad_tmp) \
