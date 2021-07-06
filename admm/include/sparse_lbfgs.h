@@ -329,7 +329,7 @@ class SparseLBFGSSolver : public Learner {
         for(size_t i = 0;i < batch.size;i++) {
           dmlc::Row<unsigned> v = batch[i];
           for(size_t j = 0; j < v.length;j++) {
-            grad[v.index[j]] += grad_[i];
+            grad[v.index[j]] += grad_[i] * v.get_value(j);
           }
         }
       }

@@ -64,7 +64,7 @@ class FTRL : public Learner {
               primal[fea_index] =  -z_val / ((beta + std::sqrt(n_val)) / alpha);
             }
 
-            float grad = PredIns(v,primal) - v.get_label();
+            float grad = PredIns(v, primal) - v.get_label();
             float grad_tmp = grad;
 
             for(unsigned j = 0;j < v.length;j++) {
@@ -72,8 +72,8 @@ class FTRL : public Learner {
               float w_val = primal[fea_index];
               float n_val = n[fea_index];
 
-              //rediual iterm
-              grad_tmp += dual[fea_index] + rho * (primal[fea_index] - cons[fea_index]);
+              grad_tmp = grad_tmp * v.get_value(i) + dual[fea_index] \
+                            + rho * (primal[fea_index] - cons[fea_index]);
 
               float theta = (std::sqrt(n_val + grad_tmp * grad_tmp) \
                                  - std::sqrt(n_val)) / alpha;

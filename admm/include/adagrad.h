@@ -51,12 +51,13 @@ class AdaGrad : public Learner {
           for(size_t i = 0;i < batch.size;i++)
           {
             dmlc::Row<unsigned> v = batch[i];
-            float grad = PredIns(v,primal) - v.get_label();
+            float grad = PredIns(v, primal) - v.get_label();
             float grad_tmp = grad;
 
             for(unsigned j = 0;j < v.length;j++) {
               unsigned fea_index = v.index[j]; 
-              grad_tmp += dual[fea_index] + rho * (primal[fea_index] - cons[fea_index]);
+              grad_tmp = grad_tmp * v.get_value(j) + dual[fea_index] \
+                            + rho * (primal[fea_index] - cons[fea_index]);
               sqr_grad[fea_index] += grad_tmp * grad_tmp;
               float lr = alpha / sqrt(sqr_grad[fea_index] + beta);
               primal[fea_index] -= lr * grad_tmp;
@@ -96,3 +97,4 @@ class AdaGrad : public Learner {
 };
 
 }
+
