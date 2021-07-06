@@ -163,6 +163,7 @@ class SparseLBFGSSolver : public Learner {
                           float *cons,
                           const float rho,
                           dmlc::RowBlockIter<unsigned> *dtrain) {
+      memset(primal, 0.0, sizeof(float)*num_fea);
       //init gradient
       CalGrad(grad, primal, dual, cons, rho, dtrain);
       //init obj val

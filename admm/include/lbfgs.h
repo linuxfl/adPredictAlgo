@@ -145,11 +145,12 @@ class LBFGSSolver : public Learner {
       new_w = Eigen::VectorXf::Zero(num_fea);
     }
 
-    inline void ParamInit(const Eigen::VectorXf & old_w,
-                     const Eigen::VectorXf & dual,
-                     const Eigen::VectorXf & cons,
-                     const float &rho,
-                     dmlc::RowBlockIter<unsigned> *dtrain) {
+    inline void ParamInit(Eigen::VectorXf & old_w,
+                          const Eigen::VectorXf & dual,
+                          const Eigen::VectorXf & cons,
+                          const float &rho,
+                          dmlc::RowBlockIter<unsigned> *dtrain) {
+      old_w.setZero();
       //init gradient
       CalGrad(grad, old_w, dual, cons, rho, dtrain);
       //init obj val
